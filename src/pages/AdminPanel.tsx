@@ -45,6 +45,7 @@ const AdminPanel = () => {
   const [fileSources, setFileSources] = useState<string[]>([]);
   const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("vocabulary");
 
   useEffect(() => {
     // Check admin status from localStorage
@@ -76,7 +77,7 @@ const AdminPanel = () => {
     
     toast({
       title: "Words Imported",
-      description: `Added ${words.length} words from text file${source ? ` "${source}"` : ''}. They need approval before being used in flashcards.`,
+      description: `Added ${words.length} words from text file${source ? ` "${source}"` : ''}. Words are automatically approved.`,
       duration: 5000,
     });
   };
@@ -107,7 +108,15 @@ const AdminPanel = () => {
 
   const handleApproveWord = (id: string, approved: boolean) => {
     updateWordApproval(id, approved);
-    setVocabulary(getVocabulary());
+    setVocabulary(prev => {
+      // Update the local state immediately to fix checkbox issue
+      return prev.map(word => {
+        if (word.id === id) {
+          return { ...word, approved };
+        }
+        return word;
+      });
+    });
     
     toast({
       title: approved ? "Word Approved" : "Word Unapproved",
@@ -156,6 +165,7 @@ const AdminPanel = () => {
   // View words from a specific source
   const handleViewSourceWords = (source: string) => {
     setSelectedSource(source);
+    setActiveTab("vocabulary"); // Switch to vocabulary tab to show the filtered words
     
     toast({
       title: "Source Filter Applied",
@@ -202,6 +212,11 @@ const AdminPanel = () => {
     setSelectedSource(source);
   };
 
+  // Handle tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -226,7 +241,7 @@ const AdminPanel = () => {
       <div className="container py-8 max-w-4xl">
         <h1 className="text-3xl font-bold mb-8">Admin Panel</h1>
         
-        <Tabs defaultValue="vocabulary" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="vocabulary">Vocabulary Management</TabsTrigger>
             <TabsTrigger value="textimport">Import from Text</TabsTrigger>
@@ -260,9 +275,23 @@ const AdminPanel = () => {
             </Card>
 
             <div className="mt-8">
-              <h3 className="text-xl font-semibold mb-4">
-                Vocabulary Management
-              </h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold">Vocabulary Management</h3>
+                {selectedSource && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      Showing words from: <span className="text-blue-600">{selectedSource}</span>
+                    </span>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleClearSourceFilter}
+                    >
+                      Clear Filter
+                    </Button>
+                  </div>
+                )}
+              </div>
               
               <VocabularyList
                 onApproveWord={handleApproveWord}
@@ -335,7 +364,6 @@ const AdminPanel = () => {
                                 <Button 
                                   size="sm" 
                                   onClick={() => handleCreateSourceFlashcards(source)}
-                                  disabled={approvedCount === 0}
                                 >
                                   Create Flashcards
                                 </Button>
@@ -347,11 +375,6 @@ const AdminPanel = () => {
                                 <p><strong>Total Words:</strong> {sourceWords.length}</p>
                                 <p><strong>Approved Words:</strong> {approvedCount}</p>
                                 <p><strong>Pending Approval:</strong> {sourceWords.length - approvedCount}</p>
-                                {approvedCount === 0 && (
-                                  <p className="text-amber-600">
-                                    You need to approve some words before creating flashcards.
-                                  </p>
-                                )}
                               </div>
                             </CollapsibleContent>
                           </Collapsible>

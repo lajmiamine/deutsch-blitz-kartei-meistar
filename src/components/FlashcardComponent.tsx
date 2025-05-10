@@ -81,6 +81,13 @@ const FlashcardComponent = ({
     }
   };
 
+  // Show source if available
+  const sourceDisplay = word.source ? (
+    <div className="text-xs text-muted-foreground mt-1">
+      Source: {word.source}
+    </div>
+  ) : null;
+
   return (
     <div className={`flashcard w-full max-w-md mx-auto ${isFlipped ? "flipped" : ""}`}>
       <div className="flashcard-inner">
@@ -94,6 +101,7 @@ const FlashcardComponent = ({
                 <p className="text-sm text-muted-foreground">
                   {direction === "german-to-english" ? "Translate to English" : "Translate to German"}
                 </p>
+                {sourceDisplay}
                 {hint && (
                   <p className="text-sm text-muted-foreground">Hint: {hint}</p>
                 )}
@@ -140,6 +148,7 @@ const FlashcardComponent = ({
                   {direction === "german-to-english" ? "The German word" : "The English word"}
                 </p>
                 <h3 className="text-2xl font-bold">{promptWord}</h3>
+                {sourceDisplay}
               </div>
               <Button 
                 variant="ghost" 

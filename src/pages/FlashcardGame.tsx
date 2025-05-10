@@ -14,7 +14,9 @@ import {
   getApprovedVocabulary,
   updateWordStatistics,
   getVocabularyByDifficulty,
-  deleteVocabularyWord
+  deleteVocabularyWord,
+  getApprovedVocabularyBySource,
+  getAllSources
 } from "@/utils/vocabularyService";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -46,32 +48,42 @@ const FlashcardGame = () => {
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
   const [isSelectingWords, setIsSelectingWords] = useState(false);
   
+  // New state for source filtering
+  const [availableSources, setAvailableSources] = useState<string[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
+  
   // Available word count options
   const wordCountOptions = [5, 10, 15, 20, 30, 50, "all"];
 
-  // Load words based on selected difficulty
+  // Load words based on selected difficulty and source
   const loadWords = useCallback(() => {
     let vocabularyWords: VocabularyWord[] = [];
     
-    switch (difficulty) {
-      case "easy":
-        vocabularyWords = getVocabularyByDifficulty(1);
-        break;
-      case "medium":
-        vocabularyWords = getVocabularyByDifficulty(2);
-        break;
-      case "hard":
-        vocabularyWords = getVocabularyByDifficulty(3);
-        break;
-      default:
-        vocabularyWords = getApprovedVocabulary();
+    // First check if we're filtering by source
+    if (selectedSource) {
+      vocabularyWords = getApprovedVocabularyBySource(selectedSource);
+    } else {
+      // If no source filter, apply difficulty filter
+      switch (difficulty) {
+        case "easy":
+          vocabularyWords = getVocabularyByDifficulty(1);
+          break;
+        case "medium":
+          vocabularyWords = getVocabularyByDifficulty(2);
+          break;
+        case "hard":
+          vocabularyWords = getVocabularyByDifficulty(3);
+          break;
+        default:
+          vocabularyWords = getApprovedVocabulary();
+      }
     }
     
     if (vocabularyWords.length === 0) {
-      // Fall back to all words if the selected difficulty has no words
+      // Fall back to all words if the selected filters have no words
       vocabularyWords = getApprovedVocabulary();
       toast({
-        title: "No words found for selected difficulty",
+        title: "No words found for selected filters",
         description: "Showing all approved words instead.",
         duration: 3000,
       });
@@ -88,13 +100,30 @@ const FlashcardGame = () => {
     setWordCorrectCounts({});
     setWordMistakes({});
     setShowingWrongWords(false);
-  }, [difficulty, toast]);
+  }, [difficulty, selectedSource, toast]);
 
-  // Initialize game
+  // Initialize game and load sources
   useEffect(() => {
+    // Load available sources
+    const sources = getAllSources();
+    setAvailableSources(sources);
+    
+    // Check if there's a source in localStorage (from the admin panel)
+    const savedSource = localStorage.getItem("flashcard_source");
+    if (savedSource) {
+      setSelectedSource(savedSource);
+      // Clear it after loading
+      localStorage.removeItem("flashcard_source");
+    }
+    
     loadWords();
   }, [loadWords]);
   
+  // Reload words when source or difficulty changes
+  useEffect(() => {
+    loadWords();
+  }, [selectedSource, difficulty, loadWords]);
+
   // Prepare words for practice based on selection mode and word count
   const prepareWordsForPractice = () => {
     let practiceWords: VocabularyWord[] = [];
@@ -413,6 +442,12 @@ const FlashcardGame = () => {
     return (wordCorrectCounts[word.id] || 0) >= requiredCorrectAnswers;
   }).length;
 
+  // Function to handle source change
+  const handleSourceChange = (source: string | undefined) => {
+    setSelectedSource(source);
+    setGameStarted(false); // Reset game state when changing source
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -484,6 +519,31 @@ const FlashcardGame = () => {
                 <CardDescription>Select your options and start the game to improve your vocabulary</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-6">
+                  <label className="text-sm font-medium mb-1 block">Text File Source</label>
+                  <Select 
+                    value={selectedSource || ""}
+                    onValueChange={(value) => handleSourceChange(value === "" ? undefined : value)}
+                  >
+                    <SelectTrigger className="w-[250px] mx-auto">
+                      <SelectValue placeholder="All sources" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All sources</SelectItem>
+                      {availableSources.map((source) => (
+                        <SelectItem key={source} value={source}>
+                          {source}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedSource && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Showing words from "{selectedSource}"
+                    </p>
+                  )}
+                </div>
+                
                 <Tabs defaultValue="all" className="w-[400px] mx-auto">
                   <TabsList className="grid grid-cols-4 mb-4">
                     <TabsTrigger value="all" onClick={() => setDifficulty("all")}>All</TabsTrigger>
@@ -619,11 +679,17 @@ const FlashcardGame = () => {
                 </div>
                 
                 <div className="flex justify-center flex-wrap gap-2 mb-4">
-                  <Badge variant="outline" className="bg-german-black text-white">
-                    {difficulty === "all" ? "All Levels" : 
-                    difficulty === "easy" ? "Easy" : 
-                    difficulty === "medium" ? "Medium" : "Hard"}
-                  </Badge>
+                  {selectedSource ? (
+                    <Badge variant="outline" className="bg-blue-500 text-white">
+                      Source: {selectedSource}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-german-black text-white">
+                      {difficulty === "all" ? "All Levels" : 
+                      difficulty === "easy" ? "Easy" : 
+                      difficulty === "medium" ? "Medium" : "Hard"}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="bg-german-gold text-black">
                     {direction === "german-to-english" ? "German → English" : "English → German"}
                   </Badge>

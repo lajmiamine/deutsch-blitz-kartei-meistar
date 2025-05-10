@@ -146,7 +146,7 @@ export const addMultipleVocabularyWords = (words: Array<{ german: string; englis
     id: Date.now() + Math.random().toString(36).substring(2, 8),
     german: word.german,
     english: word.english,
-    approved: false, // New words need approval
+    approved: true, // Changed to true - automatically approve imported words
     difficulty: 1,
     timesCorrect: 0,
     timesIncorrect: 0,
