@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import { RefreshCcw, X } from "lucide-react";
 import FlashcardComponent from "@/components/FlashcardComponent";
 import Navbar from "@/components/Navbar";
 import { 
@@ -15,6 +16,7 @@ import {
   getVocabularyByDifficulty
 } from "@/utils/vocabularyService";
 import { useToast } from "@/components/ui/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const FlashcardGame = () => {
   const { toast } = useToast();
@@ -27,6 +29,11 @@ const FlashcardGame = () => {
   const [difficulty, setDifficulty] = useState<"all" | "easy" | "medium" | "hard">("all");
   const [gameStarted, setGameStarted] = useState(false);
   const [direction, setDirection] = useState<"german-to-english" | "english-to-german">("german-to-english");
+  
+  // New state for wrong words tracking
+  const [wrongWords, setWrongWords] = useState<VocabularyWord[]>([]);
+  const [showingWrongWords, setShowingWrongWords] = useState(false);
+  const [wordCorrectCounts, setWordCorrectCounts] = useState<Record<string, number>>({});
 
   // Load words based on selected difficulty
   const loadWords = useCallback(() => {
@@ -60,6 +67,10 @@ const FlashcardGame = () => {
     const shuffled = [...vocabularyWords].sort(() => Math.random() - 0.5);
     setWords(shuffled);
     setCurrentWordIndex(0);
+    // Reset wrong words and correct counts
+    setWrongWords([]);
+    setWordCorrectCounts({});
+    setShowingWrongWords(false);
   }, [difficulty, toast]);
 
   // Initialize game
@@ -67,17 +78,21 @@ const FlashcardGame = () => {
     loadWords();
   }, [loadWords]);
 
-  // Check if we've run out of words
+  // Check if we've completed all words (all words have been answered correctly 3 times)
   useEffect(() => {
-    if (gameStarted && words.length > 0 && currentWordIndex >= words.length) {
-      toast({
-        title: "Game Complete!",
-        description: `Your final score: ${score}/${totalAttempts}`,
-        duration: 5000,
-      });
-      setGameStarted(false);
+    if (gameStarted && words.length > 0) {
+      const allWordsCompleted = words.every(word => (wordCorrectCounts[word.id] || 0) >= 3);
+      
+      if (allWordsCompleted) {
+        toast({
+          title: "Congratulations!",
+          description: `You've mastered all words! Final score: ${score}/${totalAttempts}`,
+          duration: 5000,
+        });
+        setGameStarted(false);
+      }
     }
-  }, [currentWordIndex, words.length, gameStarted, score, totalAttempts, toast]);
+  }, [wordCorrectCounts, words, gameStarted, score, totalAttempts, toast]);
 
   const startGame = () => {
     loadWords();
@@ -86,45 +101,118 @@ const FlashcardGame = () => {
     setTotalAttempts(0);
     setCurrentWordIndex(0);
     setGameStarted(true);
+    setWrongWords([]);
+    setWordCorrectCounts({});
+    setShowingWrongWords(false);
   };
 
-  const handleCorrectAnswer = () => {
-    if (currentWordIndex < words.length) {
-      updateWordStatistics(words[currentWordIndex].id, true);
-      setScore(prev => prev + 1);
-      setStreak(prev => prev + 1);
-      setBestStreak(prev => Math.max(prev, streak + 1));
-      setTotalAttempts(prev => prev + 1);
-      setCurrentWordIndex(prev => prev + 1);
-      
-      toast({
-        title: "Correct!",
-        description: `Streak: ${streak + 1}`,
-        duration: 1000,
-      });
-    }
+  const handleCorrectAnswer = (wordId: string) => {
+    const currentWord = words[currentWordIndex];
+    
+    // Update word statistics
+    updateWordStatistics(wordId, true);
+    
+    // Update score and streak
+    setScore(prev => prev + 1);
+    setStreak(prev => prev + 1);
+    setBestStreak(prev => Math.max(prev, streak + 1));
+    setTotalAttempts(prev => prev + 1);
+    
+    // Increment correct answer count for this word
+    setWordCorrectCounts(prev => {
+      const newCounts = { ...prev };
+      newCounts[wordId] = (newCounts[wordId] || 0) + 1;
+      return newCounts;
+    });
+    
+    // Remove from wrong words if present
+    setWrongWords(prev => prev.filter(w => w.id !== wordId));
+    
+    // Show toast notification
+    toast({
+      title: "Correct!",
+      description: `Streak: ${streak + 1}`,
+      duration: 1000,
+    });
+    
+    // Move to next word
+    goToNextWord();
   };
 
-  const handleIncorrectAnswer = () => {
-    if (currentWordIndex < words.length) {
-      updateWordStatistics(words[currentWordIndex].id, false);
-      setStreak(0);
-      setTotalAttempts(prev => prev + 1);
-      setCurrentWordIndex(prev => prev + 1);
-      
-      toast({
-        title: "Incorrect!",
-        variant: "destructive",
-        duration: 1000,
-      });
+  const handleIncorrectAnswer = (wordId: string) => {
+    const currentWord = words[currentWordIndex];
+    
+    // Update word statistics
+    updateWordStatistics(wordId, false);
+    
+    // Reset streak and increment attempts
+    setStreak(0);
+    setTotalAttempts(prev => prev + 1);
+    
+    // Add to wrong words if not already there
+    if (!wrongWords.some(w => w.id === wordId)) {
+      setWrongWords(prev => [...prev, currentWord]);
     }
+    
+    // Show toast notification
+    toast({
+      title: "Incorrect!",
+      variant: "destructive",
+      duration: 1000,
+    });
+    
+    // Move to next word
+    goToNextWord();
   };
 
   const handleSkip = () => {
-    if (currentWordIndex < words.length) {
-      setStreak(0);
-      setCurrentWordIndex(prev => prev + 1);
+    setStreak(0);
+    goToNextWord();
+  };
+
+  // Function to determine the next word
+  const goToNextWord = () => {
+    // Filter out words that have been answered correctly 3 times
+    const remainingWords = words.filter(word => (wordCorrectCounts[word.id] || 0) < 3);
+    
+    if (remainingWords.length === 0) {
+      // All words have been completed
+      return;
     }
+    
+    // Choose the next word
+    let nextIndex = (currentWordIndex + 1) % words.length;
+    let attempts = 0;
+    
+    // Skip words that have been answered correctly 3 times
+    while ((wordCorrectCounts[words[nextIndex].id] || 0) >= 3 && attempts < words.length) {
+      nextIndex = (nextIndex + 1) % words.length;
+      attempts++;
+    }
+    
+    setCurrentWordIndex(nextIndex);
+  };
+
+  const resetGame = () => {
+    startGame();
+    toast({
+      title: "Game Reset",
+      description: "All progress has been reset.",
+      duration: 3000,
+    });
+  };
+
+  const toggleWrongWords = () => {
+    if (wrongWords.length === 0) {
+      toast({
+        title: "No Wrong Words",
+        description: "You haven't answered any words incorrectly yet.",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    setShowingWrongWords(!showingWrongWords);
   };
 
   const calculateAccuracy = () => {
@@ -145,6 +233,9 @@ const FlashcardGame = () => {
       duration: 2000,
     });
   };
+
+  // Count how many words have been mastered (answered correctly 3 times)
+  const masteredWordCount = words.filter(word => (wordCorrectCounts[word.id] || 0) >= 3).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -228,13 +319,13 @@ const FlashcardGame = () => {
                 
                 <div className="mb-4">
                   <div className="flex justify-between text-sm mb-1">
-                    <span>Progress</span>
-                    <span>{currentWordIndex}/{words.length}</span>
+                    <span>Mastered Words</span>
+                    <span>{masteredWordCount}/{words.length}</span>
                   </div>
-                  <Progress value={(currentWordIndex / words.length) * 100} className="h-2" />
+                  <Progress value={(masteredWordCount / (words.length || 1)) * 100} className="h-2" />
                 </div>
                 
-                <div className="flex justify-center space-x-2 mb-4">
+                <div className="flex justify-center flex-wrap gap-2 mb-4">
                   <Badge variant="outline" className="bg-german-black text-white">
                     {difficulty === "all" ? "All Levels" : 
                      difficulty === "easy" ? "Easy" : 
@@ -243,19 +334,81 @@ const FlashcardGame = () => {
                   <Badge variant="outline" className="bg-german-gold text-black">
                     {direction === "german-to-english" ? "German → English" : "English → German"}
                   </Badge>
+                  {wrongWords.length > 0 && (
+                    <Badge variant="outline" className="bg-red-500 text-white">
+                      {wrongWords.length} Wrong Words
+                    </Badge>
+                  )}
                 </div>
                 
-                <div className="mt-4 flex items-center justify-center gap-2">
+                <div className="flex items-center justify-center gap-2 flex-wrap">
                   <Button variant="outline" size="sm" onClick={toggleDirection}>
                     {direction === "german-to-english" 
                       ? "Switch to English → German" 
                       : "Switch to German → English"}
                   </Button>
+                  <Button 
+                    variant={showingWrongWords ? "destructive" : "outline"} 
+                    size="sm" 
+                    onClick={toggleWrongWords}
+                    disabled={wrongWords.length === 0}
+                  >
+                    {showingWrongWords ? "Hide Wrong Words" : "Show Wrong Words"}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm" 
+                    onClick={resetGame}
+                  >
+                    <RefreshCcw className="mr-1 h-4 w-4" /> Reset Game
+                  </Button>
                 </div>
               </CardContent>
             </Card>
             
-            {words.length > 0 && currentWordIndex < words.length ? (
+            {showingWrongWords ? (
+              <Card className="p-4">
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg">Wrong Words</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={() => setShowingWrongWords(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <CardDescription>Words you've answered incorrectly</CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <ScrollArea className="h-60">
+                    <div className="space-y-2">
+                      {wrongWords.map((word) => (
+                        <div 
+                          key={word.id} 
+                          className="p-3 border rounded-md flex justify-between items-center"
+                        >
+                          <div>
+                            <p className="font-medium">{word.german}</p>
+                            <p className="text-sm text-muted-foreground">{word.english}</p>
+                          </div>
+                          <Badge className="bg-amber-500">
+                            {(wordCorrectCounts[word.id] || 0)}/3 Correct
+                          </Badge>
+                        </div>
+                      ))}
+                      {wrongWords.length === 0 && (
+                        <p className="text-center text-muted-foreground py-4">
+                          No wrong words yet. Keep practicing!
+                        </p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+                <CardFooter className="flex justify-center p-4">
+                  <Button onClick={() => setShowingWrongWords(false)}>
+                    Continue Practicing
+                  </Button>
+                </CardFooter>
+              </Card>
+            ) : words.length > 0 && currentWordIndex < words.length ? (
               <FlashcardComponent 
                 word={words[currentWordIndex]} 
                 onCorrect={handleCorrectAnswer} 

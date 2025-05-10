@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { VocabularyWord } from "@/utils/vocabularyService";
+import { RefreshCcw } from "lucide-react";
 
 interface FlashcardComponentProps {
   word: VocabularyWord;
-  onCorrect: () => void;
-  onIncorrect: () => void;
+  onCorrect: (wordId: string) => void;
+  onIncorrect: (wordId: string) => void;
   onSkip: () => void;
   direction: "german-to-english" | "english-to-german";
 }
@@ -43,10 +44,10 @@ const FlashcardComponent = ({
     
     if (normalizedUserAnswer === normalizedCorrectAnswer) {
       setFeedback("correct");
-      onCorrect();
+      onCorrect(word.id);
     } else {
       setFeedback("incorrect");
-      onIncorrect();
+      onIncorrect(word.id);
     }
     
     setIsFlipped(true);
@@ -141,7 +142,7 @@ const FlashcardComponent = ({
               </div>
             )}
             
-            <Button onClick={onCorrect}>Next Word</Button>
+            <Button onClick={onCorrect.bind(null, word.id)}>Next Word</Button>
           </div>
         </Card>
       </div>
