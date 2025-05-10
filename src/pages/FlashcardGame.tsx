@@ -233,8 +233,15 @@ const FlashcardGame = () => {
         // Word just became mastered in this session
         setMasteredWords(prev => [...prev, cardId]);
         
-        // Update unmastered words list
+        // Update unmastered words list - REMOVE THE WORD IMMEDIATELY
         setUnmasteredWords(prev => prev.filter(w => w.id !== cardId));
+        
+        toast({
+          title: "Word Mastered!",
+          description: "Great job! You've mastered this word.",
+          variant: "default",
+          duration: 2000,
+        });
       }
     }
     
@@ -365,7 +372,7 @@ const FlashcardGame = () => {
       .map(word => word.id);
     setMasteredWords(alreadyMasteredWords);
     
-    // Set unmastered words
+    // Set unmastered words - ENSURE ONLY UNMASTERED WORDS ARE INCLUDED
     const notMastered = filteredWords.filter(word => !word.mastered);
     setUnmasteredWords(notMastered);
     
@@ -817,7 +824,7 @@ const FlashcardGame = () => {
         )}
         
         {/* Flashcard Component (shown during active game) */}
-        {gameActive && filteredWords.length > 0 && (
+        {gameActive && unmasteredWords.length > 0 && currentWordIndex < unmasteredWords.length && (
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <div>
@@ -825,13 +832,13 @@ const FlashcardGame = () => {
                   {direction === "german-to-english" ? "German → English" : "English → German"}
                 </h2>
                 <p className="text-sm text-muted-foreground dark:text-gray-400">
-                  Card {currentWordIndex + 1} of {filteredWords.length}
+                  Card {currentWordIndex + 1} of {unmasteredWords.length}
                 </p>
               </div>
             </div>
 
             <FlashcardComponent
-              word={filteredWords[currentWordIndex]}
+              word={unmasteredWords[currentWordIndex]}
               direction={direction}
               onCorrect={(wordId) => handleAnswerChecked(wordId, true)}
               onIncorrect={(wordId) => handleAnswerChecked(wordId, false)}
