@@ -1,3 +1,4 @@
+
 export interface VocabularyWord {
   id: string;
   german: string;
@@ -63,7 +64,9 @@ export const getPaginatedVocabulary = (
       word.german.toLowerCase().includes(searchTerm.toLowerCase()) || 
       word.english.toLowerCase().includes(searchTerm.toLowerCase());
       
-    const matchesSource = !source || word.source === source;
+    // Consider "other" source to mean words without a source
+    const matchesSource = !source || 
+      (source === "other" ? !word.source : word.source === source);
     
     return matchesSearch && matchesSource;
   });
@@ -342,12 +345,20 @@ export const getVocabularyByDifficulty = (difficulty: number): VocabularyWord[] 
 // Get all vocabulary words by source
 export const getVocabularyBySource = (source: string): VocabularyWord[] => {
   const vocabulary = getVocabulary();
+  // Handle "other" source to mean words without a source
+  if (source === "other") {
+    return vocabulary.filter(word => !word.source);
+  }
   return vocabulary.filter(word => word.source === source);
 };
 
 // Get approved vocabulary by source
 export const getApprovedVocabularyBySource = (source: string): VocabularyWord[] => {
   const vocabulary = getApprovedVocabulary();
+  // Handle "other" source to mean words without a source
+  if (source === "other") {
+    return vocabulary.filter(word => !word.source);
+  }
   return vocabulary.filter(word => word.source === source);
 };
 
@@ -368,7 +379,13 @@ export const getWordCountByDifficulty = (source?: string): { easy: number, mediu
   let words = getApprovedVocabulary();
   
   if (source) {
-    words = words.filter(word => word.source === source);
+    if (source === "other") {
+      // Get words without any source
+      words = words.filter(word => !word.source);
+    } else {
+      // Get words from a specific source
+      words = words.filter(word => word.source === source);
+    }
   }
   
   return {

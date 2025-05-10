@@ -294,6 +294,9 @@ const FlashcardGame = () => {
     // Reset all word mastery progress in localStorage
     resetWordMasteryProgress();
     
+    // Reload the words to get fresh state from localStorage
+    loadWords();
+    
     // Reset progress but keep the same words
     setCorrectAnswers([]);
     setIncorrectAnswers([]);
@@ -302,7 +305,7 @@ const FlashcardGame = () => {
     // Reset mastered words - all words are now unmastered
     setMasteredWords([]);
     
-    // Reset unmastered words to include all words
+    // Get the newly loaded words and update unmastered list
     setUnmasteredWords([...filteredWords]);
     
     // Reset current index
