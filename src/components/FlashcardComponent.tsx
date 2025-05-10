@@ -1,3 +1,4 @@
+
 import { useState, useEffect, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,7 @@ const FlashcardComponent = ({
     setHint(newHint);
   };
 
+  // Fix: Safely handle the optional onRemove prop
   const handleRemoveWord = () => {
     if (onRemove && confirm(`Are you sure you want to remove "${word.german}" from your vocabulary?`)) {
       onRemove(word.id);
