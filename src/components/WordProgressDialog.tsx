@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -169,7 +168,7 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
                         <Progress 
                           value={progressPercentage} 
                           className="h-1.5" 
-                          indicatorClassName={word.mastered ? "bg-green-500 dark:bg-green-500" : "bg-blue-500 dark:bg-blue-500"}
+                          indicatorClassName={word.mastered ? "bg-green-500 dark:bg-green-500" : "bg-green-500 dark:bg-green-500"}
                         />
                       </div>
                     </div>

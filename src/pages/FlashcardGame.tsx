@@ -147,6 +147,9 @@ const FlashcardGame = () => {
         filtered = filtered.filter(word => word.difficulty === difficultyLevel);
       }
     }
+
+    // Filter out mastered words
+    filtered = filtered.filter(word => !word.mastered);
     
     // Shuffle the array for random order
     filtered.sort(() => Math.random() - 0.5);
@@ -154,7 +157,7 @@ const FlashcardGame = () => {
     setFilteredWords(filtered);
     
     // Initialize unmastered words array
-    setUnmasteredWords(filtered.filter(word => !word.mastered));
+    setUnmasteredWords(filtered);
     
     setCurrentWordIndex(0);
     
@@ -165,7 +168,7 @@ const FlashcardGame = () => {
           selectedDifficulty === "1" ? "easy" : 
           selectedDifficulty === "2" ? "medium" : 
           selectedDifficulty === "3" ? "hard" : ""
-        } words available${selectedSource ? ` in "${selectedSource}"` : ""}.`,
+        } unmastered words available${selectedSource ? ` in "${selectedSource}"` : ""}.`,
         variant: "destructive",
       });
     }

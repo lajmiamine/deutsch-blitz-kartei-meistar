@@ -165,7 +165,7 @@ const FlashcardComponent = ({
         indicatorClassName={
           word.mastered 
             ? "bg-green-500 dark:bg-green-500" 
-            : "bg-blue-500 dark:bg-blue-500"
+            : "bg-green-500 dark:bg-green-500"
         }
       />
     </div>
