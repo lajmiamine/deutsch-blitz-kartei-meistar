@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +23,7 @@ const FlashcardGame = () => {
   const [filteredWords, setFilteredWords] = useState<VocabularyWord[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(0);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
-  const [direction, setDirection] = useState<"de-to-en" | "en-to-de">("de-to-en");
+  const [direction, setDirection] = useState<"german-to-english" | "english-to-german">("german-to-english");
   const [sources, setSources] = useState<string[]>([]);
   const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
   const [wordCounts, setWordCounts] = useState<{easy: number, medium: number, hard: number}>({
@@ -119,7 +118,7 @@ const FlashcardGame = () => {
     setSelectedDifficulty(value);
   };
 
-  const handleDirectionChange = (value: "de-to-en" | "en-to-de") => {
+  const handleDirectionChange = (value: "german-to-english" | "english-to-german") => {
     setDirection(value);
   };
 
@@ -234,12 +233,12 @@ const FlashcardGame = () => {
                 className="flex flex-col space-y-1"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="de-to-en" id="de-to-en" />
-                  <Label htmlFor="de-to-en">German → English</Label>
+                  <RadioGroupItem value="german-to-english" id="german-to-english" />
+                  <Label htmlFor="german-to-english">German → English</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="en-to-de" id="en-to-de" />
-                  <Label htmlFor="en-to-de">English → German</Label>
+                  <RadioGroupItem value="english-to-german" id="english-to-german" />
+                  <Label htmlFor="english-to-german">English → German</Label>
                 </div>
               </RadioGroup>
             </CardContent>
@@ -251,7 +250,7 @@ const FlashcardGame = () => {
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h2 className="text-xl font-semibold">
-                  {direction === "de-to-en" ? "German → English" : "English → German"}
+                  {direction === "german-to-english" ? "German → English" : "English → German"}
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   Card {currentWordIndex + 1} of {filteredWords.length}
