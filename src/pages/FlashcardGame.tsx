@@ -261,8 +261,14 @@ const FlashcardGame = () => {
 
     // Check if all words have been mastered
     if (unmasteredWords.length <= 1) {
-      // The current word was the last unmastered one
-      endGame();
+      // This was the last word and it was just mastered
+      if (updatedWord && updatedWord.mastered) {
+        // End the game if all words are mastered
+        endGame();
+      } else {
+        // The current word was the last unmastered one
+        handleNextUnmasteredCard();
+      }
       return;
     }
     
@@ -271,9 +277,10 @@ const FlashcardGame = () => {
   };
 
   const handleNextUnmasteredCard = () => {
-    // If there are no more unmastered words, end the game
-    if (unmasteredWords.length <= 1) {
-      endGame();
+    // If there are no more unmastered words, show completion message
+    if (unmasteredWords.length === 0) {
+      // Don't end game automatically - let user see completion message
+      // and decide when to end
       return;
     }
     
@@ -289,9 +296,9 @@ const FlashcardGame = () => {
       // Find its index in the unmastered array
       const newIndex = unmasteredWords.findIndex(w => w.id === nextUnmasteredWord.id);
       setCurrentWordIndex(newIndex);
-    } else {
-      // If somehow we don't have other unmastered words, end game
-      endGame();
+    } else if (unmasteredWords.length === 1) {
+      // If only one unmastered word remains, keep showing it
+      setCurrentWordIndex(0);
     }
   };
 
@@ -832,7 +839,7 @@ const FlashcardGame = () => {
                   {direction === "german-to-english" ? "German → English" : "English → German"}
                 </h2>
                 <p className="text-sm text-muted-foreground dark:text-gray-400">
-                  Card {currentWordIndex + 1} of {unmasteredWords.length}
+                  {answeredCount} cards answered - {unmasteredWords.length} words remaining
                 </p>
               </div>
             </div>
