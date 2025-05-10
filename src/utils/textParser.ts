@@ -1,3 +1,4 @@
+
 export interface ParsedWord {
   german: string;
   english: string;
@@ -43,17 +44,12 @@ export const extractVocabularyFromText = async (file: File, sourceLanguage: stri
 };
 
 /**
- * Convert string to camel case
- * Example: "APPLE PIE" becomes "applePie"
+ * Capitalize the first letter of a string and make the rest lowercase
+ * Example: "APPLE PIE" becomes "Apple pie"
  */
-const toCamelCase = (str: string): string => {
-  return str.toLowerCase()
-    .split(/[\s-_]+/)
-    .map((word, index) => {
-      // First word stays lowercase, the rest get capitalized
-      return index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1);
-    })
-    .join('');
+const capitalizeFirstLetter = (str: string): string => {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 };
 
 // XML parser for vocabulary words
@@ -80,12 +76,12 @@ const parseXmlVocabulary = (xmlContent: string): Array<ParsedWord> => {
         const english = englishMatch[1].trim();
         
         if (german && english) {
-          // Apply camel casing to the English translation
-          const camelCasedEnglish = toCamelCase(english);
+          // Capitalize first letter of the English translation
+          const formattedEnglish = capitalizeFirstLetter(english);
           
           parsedWords.push({
             german,
-            english: camelCasedEnglish
+            english: formattedEnglish
           });
         }
       }
@@ -305,6 +301,9 @@ const translateWords = async (sourceWords: string[], sourceLanguage: string = 'd
           translation = (prefixes[targetLanguage] || '') + sourceWord;
         }
       }
+      
+      // Capitalize the first letter of the translation
+      translation = capitalizeFirstLetter(translation);
       
       // Output the pair
       if (sourceLanguage === 'de' && targetLanguage === 'en') {
