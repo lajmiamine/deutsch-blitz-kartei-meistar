@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, X, Random } from "lucide-react";
+import { CheckCircle, X, Shuffle } from "lucide-react";
 import FlashcardComponent from "@/components/FlashcardComponent";
 import Navbar from "@/components/Navbar";
 import { 
@@ -41,7 +40,7 @@ const FlashcardGame = () => {
   const [wordMistakes, setWordMistakes] = useState<Record<string, boolean>>({});
   
   // New state for word count and selection mode
-  const [wordCount, setWordCount] = useState<number>(10);
+  const [wordCount, setWordCount] = useState<number | "all">(10);
   const [selectionMode, setSelectionMode] = useState<"random" | "select">("random");
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
   const [isSelectingWords, setIsSelectingWords] = useState(false);
@@ -107,7 +106,7 @@ const FlashcardGame = () => {
         practiceWords = shuffled;
       } else {
         // If we have fewer words than requested, use all available words
-        const count = Math.min(Number(wordCount), shuffled.length);
+        const count = Math.min(wordCount as number, shuffled.length);
         practiceWords = shuffled.slice(0, count);
       }
     } else {
@@ -490,15 +489,21 @@ const FlashcardGame = () => {
                     <div>
                       <label className="text-sm font-medium mb-1 block">Number of Words</label>
                       <Select 
-                        value={wordCount.toString()} 
-                        onValueChange={(value) => setWordCount(value === "all" ? "all" : parseInt(value))}
+                        value={typeof wordCount === "number" ? wordCount.toString() : wordCount} 
+                        onValueChange={(value) => {
+                          if (value === "all") {
+                            setWordCount("all");
+                          } else {
+                            setWordCount(parseInt(value));
+                          }
+                        }}
                       >
                         <SelectTrigger className="w-[180px] mx-auto">
                           <SelectValue placeholder="Select word count" />
                         </SelectTrigger>
                         <SelectContent>
                           {wordCountOptions.map((count) => (
-                            <SelectItem key={count} value={count.toString()}>
+                            <SelectItem key={count.toString()} value={count.toString()}>
                               {count === "all" ? "All Words" : `${count} Words`}
                             </SelectItem>
                           ))}
@@ -514,7 +519,7 @@ const FlashcardGame = () => {
                           onClick={() => toggleSelectionMode("random")}
                           className="flex items-center gap-2"
                         >
-                          <Random className="h-4 w-4" /> Random Words
+                          <Shuffle className="h-4 w-4" /> Random Words
                         </Button>
                         <Button 
                           variant={selectionMode === "select" ? "default" : "outline"}
