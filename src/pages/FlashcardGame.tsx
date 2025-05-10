@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +17,10 @@ import {
   getAllSources,
   getApprovedVocabularyBySource,
   getWordCountByDifficulty,
-  getVocabularyWithProgress
+  getVocabularyWithProgress,
+  getWordsByIds
 } from "@/utils/vocabularyService";
-import { CircleCheck, X, RefreshCw, Play, Trophy, BarChart } from "lucide-react";
+import { CircleCheck, X, RefreshCw, Play, Trophy, BarChart, Check } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,6 +30,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const FlashcardGame = () => {
   const { toast } = useToast();
@@ -43,6 +47,11 @@ const FlashcardGame = () => {
     medium: 0,
     hard: 0
   });
+  
+  // Word selection mode
+  const [selectionMode, setSelectionMode] = useState<"source" | "individual">("source");
+  const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
+  const [showWordSelector, setShowWordSelector] = useState<boolean>(false);
   
   // Track session progress
   const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
@@ -84,14 +93,19 @@ const FlashcardGame = () => {
     } else {
       filterWords();
     }
-  }, [selectedDifficulty, words, selectedSource]);
+  }, [selectedDifficulty, words, selectedSource, selectionMode, selectedWordIds]);
 
   const loadWords = () => {
     let loadedWords: VocabularyWord[] = [];
     
     if (selectedSource) {
-      // Get words from a specific source
-      loadedWords = getApprovedVocabularyBySource(selectedSource);
+      if (selectedSource === "other") {
+        // Get words without any source
+        loadedWords = getApprovedVocabulary().filter(word => !word.source);
+      } else {
+        // Get words from a specific source
+        loadedWords = getApprovedVocabularyBySource(selectedSource);
+      }
     } else {
       // Get all approved vocabulary
       loadedWords = getApprovedVocabulary();
@@ -115,12 +129,20 @@ const FlashcardGame = () => {
   const filterWords = () => {
     if (words.length === 0) return;
     
-    let filtered = [...words];
+    let filtered: VocabularyWord[] = [];
     
-    // Apply difficulty filter
-    if (selectedDifficulty !== "all") {
-      const difficultyLevel = parseInt(selectedDifficulty);
-      filtered = filtered.filter(word => word.difficulty === difficultyLevel);
+    if (selectionMode === "individual" && selectedWordIds.length > 0) {
+      // Filter by selected individual words
+      filtered = getWordsByIds(selectedWordIds);
+    } else {
+      // Filter by source and difficulty
+      filtered = [...words];
+      
+      // Apply difficulty filter
+      if (selectedDifficulty !== "all") {
+        const difficultyLevel = parseInt(selectedDifficulty);
+        filtered = filtered.filter(word => word.difficulty === difficultyLevel);
+      }
     }
     
     // Shuffle the array for random order
@@ -146,6 +168,9 @@ const FlashcardGame = () => {
     setSelectedSource(value);
     shouldReloadWords.current = true; // Flag to reload words on next effect
     
+    // Reset individual word selection when source changes
+    setSelectedWordIds([]);
+    
     // Reset progress tracking when source changes
     resetGameProgress();
   };
@@ -159,6 +184,28 @@ const FlashcardGame = () => {
 
   const handleDirectionChange = (value: "german-to-english" | "english-to-german") => {
     setDirection(value);
+  };
+
+  const handleSelectionModeChange = (value: "source" | "individual") => {
+    setSelectionMode(value);
+    
+    // Reset selected words when changing mode
+    if (value === "source") {
+      setSelectedWordIds([]);
+    }
+    
+    // Reset progress tracking when selection mode changes
+    resetGameProgress();
+  };
+
+  const toggleWordSelection = (wordId: string) => {
+    setSelectedWordIds(prev => {
+      if (prev.includes(wordId)) {
+        return prev.filter(id => id !== wordId);
+      } else {
+        return [...prev, wordId];
+      }
+    });
   };
 
   const handleAnswerChecked = (cardId: string, wasCorrect: boolean) => {
@@ -319,6 +366,14 @@ const FlashcardGame = () => {
 
   // Get text for source display
   const getSourceDisplayText = () => {
+    if (selectionMode === "individual") {
+      return `${selectedWordIds.length} selected words`;
+    }
+    
+    if (selectedSource === "other") {
+      return "Words with no source";
+    }
+    
     return selectedSource || "All words";
   };
 
@@ -333,26 +388,65 @@ const FlashcardGame = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
-                <CardTitle className="dark:text-white">Source</CardTitle>
-                <CardDescription className="dark:text-gray-300">Select vocabulary source</CardDescription>
+                <CardTitle className="dark:text-white">Selection Mode</CardTitle>
+                <CardDescription className="dark:text-gray-300">How would you like to select words?</CardDescription>
               </CardHeader>
               <CardContent>
-                <Select 
-                  value={selectedSource} 
-                  onValueChange={handleSourceChange}
+                <RadioGroup 
+                  value={selectionMode} 
+                  onValueChange={(value: "source" | "individual") => handleSelectionModeChange(value)} 
+                  className="flex flex-col space-y-1"
                 >
-                  <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
-                    <SelectValue placeholder="All words" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-gray-700">
-                    <SelectItem value={undefined}>All words</SelectItem>
-                    {sources.map(source => (
-                      <SelectItem key={source} value={source}>{source}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="source" id="by-source" />
+                    <Label htmlFor="by-source" className="dark:text-gray-200">By source & difficulty</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="individual" id="by-individual" />
+                    <Label htmlFor="by-individual" className="dark:text-gray-200">Select individual words</Label>
+                  </div>
+                </RadioGroup>
+                
+                {selectionMode === "individual" && (
+                  <div className="mt-4">
+                    <Button 
+                      variant="secondary" 
+                      size="sm"
+                      onClick={() => setShowWordSelector(true)}
+                      className="w-full"
+                    >
+                      Select Words ({selectedWordIds.length} selected)
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            {selectionMode === "source" && (
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle className="dark:text-white">Source</CardTitle>
+                  <CardDescription className="dark:text-gray-300">Select vocabulary source</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Select 
+                    value={selectedSource} 
+                    onValueChange={handleSourceChange}
+                  >
+                    <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                      <SelectValue placeholder="All words" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-gray-700">
+                      <SelectItem value={undefined}>All words</SelectItem>
+                      <SelectItem value="other">No source (Other)</SelectItem>
+                      {sources.map(source => (
+                        <SelectItem key={source} value={source}>{source}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
@@ -495,14 +589,33 @@ const FlashcardGame = () => {
           <DialogContent className="sm:max-w-md dark:bg-gray-800 dark:border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-center text-2xl dark:text-white">Game Results</DialogTitle>
-              <DialogDescription className="text-center dark:text-gray-300">
-                {calculateGameStats().accuracy >= 80 ? 
-                  "Great job! You've mastered these words." : 
-                  calculateGameStats().accuracy >= 50 ? 
-                  "Good effort! Keep practicing to improve." :
-                  "Keep practicing! You'll get better with time."}
-              </DialogDescription>
             </DialogHeader>
+            
+            {/* Display correct and incorrect counts prominently at the top */}
+            <div className="flex justify-center gap-8 my-4">
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <Check className="h-5 w-5" />
+                  <span className="text-3xl font-bold">{calculateGameStats().correctCount}</span>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Correct</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                  <X className="h-5 w-5" />
+                  <span className="text-3xl font-bold">{calculateGameStats().incorrectCount}</span>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Incorrect</p>
+              </div>
+            </div>
+            
+            <DialogDescription className="text-center dark:text-gray-300">
+              {calculateGameStats().accuracy >= 80 ? 
+                "Great job! You've mastered these words." : 
+                calculateGameStats().accuracy >= 50 ? 
+                "Good effort! Keep practicing to improve." :
+                "Keep practicing! You'll get better with time."}
+            </DialogDescription>
             
             <div className="grid grid-cols-2 gap-4 my-4">
               <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
@@ -512,14 +625,6 @@ const FlashcardGame = () => {
               <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
                 <p className="text-3xl font-bold dark:text-white">{formatTime(calculateGameStats().timeTaken)}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Time</p>
-              </div>
-              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
-                <p className="text-3xl font-bold text-green-600 dark:text-green-400">{calculateGameStats().correctCount}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Correct</p>
-              </div>
-              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
-                <p className="text-3xl font-bold text-red-600 dark:text-red-400">{calculateGameStats().incorrectCount}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Incorrect</p>
               </div>
             </div>
             
@@ -545,6 +650,72 @@ const FlashcardGame = () => {
           </DialogContent>
         </Dialog>
         
+        {/* Word Selector Dialog */}
+        <Dialog open={showWordSelector} onOpenChange={setShowWordSelector}>
+          <DialogContent className="sm:max-w-md max-h-[80vh] dark:bg-gray-800 dark:border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-center dark:text-white">Select Words</DialogTitle>
+              <DialogDescription className="text-center dark:text-gray-300">
+                Choose individual words for your flashcard game
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm dark:text-gray-300">
+                Selected: {selectedWordIds.length} words
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setSelectedWordIds([])}
+                disabled={selectedWordIds.length === 0}
+              >
+                Clear All
+              </Button>
+            </div>
+            
+            <ScrollArea className="h-[300px] pr-4">
+              <div className="space-y-2">
+                {words.map(word => (
+                  <div 
+                    key={word.id}
+                    className="flex items-center space-x-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <Checkbox
+                      id={`word-${word.id}`}
+                      checked={selectedWordIds.includes(word.id)}
+                      onCheckedChange={() => toggleWordSelection(word.id)}
+                    />
+                    <div className="grid grid-cols-2 gap-4 w-full">
+                      <Label htmlFor={`word-${word.id}`} className="dark:text-gray-200">
+                        {word.german}
+                      </Label>
+                      <Label htmlFor={`word-${word.id}`} className="text-gray-600 dark:text-gray-400">
+                        {word.english}
+                      </Label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowWordSelector(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => setShowWordSelector(false)}
+                disabled={selectedWordIds.length === 0}
+              >
+                Confirm Selection
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        
         {/* Start Game Button (when not in game) */}
         {!gameActive && !showResults && (
           <div className="flex justify-center mb-8">
@@ -552,7 +723,7 @@ const FlashcardGame = () => {
               onClick={startGame} 
               size="lg" 
               className="px-8 py-6 text-lg font-medium"
-              disabled={filteredWords.length === 0}
+              disabled={filteredWords.length === 0 || (selectionMode === "individual" && selectedWordIds.length === 0)}
             >
               <Play className="mr-2 h-5 w-5" />
               Start Game
@@ -585,13 +756,26 @@ const FlashcardGame = () => {
         )}
         
         {/* No Words Available Message */}
-        {!gameActive && !showResults && filteredWords.length === 0 && (
+        {!gameActive && !showResults && filteredWords.length === 0 && selectionMode !== "individual" && (
           <Card className="mb-8 dark:bg-gray-800 dark:border-gray-700">
             <CardContent className="pt-6">
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4 dark:text-gray-300">
                   No flashcards available with your current selection. 
                   Try selecting a different difficulty or source, or add more vocabulary words.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* No Words Selected Message */}
+        {!gameActive && !showResults && selectionMode === "individual" && selectedWordIds.length === 0 && (
+          <Card className="mb-8 dark:bg-gray-800 dark:border-gray-700">
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4 dark:text-gray-300">
+                  Please select individual words to start the game.
                 </p>
               </div>
             </CardContent>

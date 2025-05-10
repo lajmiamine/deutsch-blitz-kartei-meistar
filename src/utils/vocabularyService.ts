@@ -377,3 +377,9 @@ export const getWordCountByDifficulty = (source?: string): { easy: number, mediu
 export const clearVocabulary = (): void => {
   localStorage.removeItem(LOCAL_STORAGE_KEY);
 };
+
+// Add this function to support selecting individual words by ID
+export const getWordsByIds = (ids: string[]): VocabularyWord[] => {
+  const allWords = getApprovedVocabulary();
+  return allWords.filter(word => ids.includes(word.id));
+};

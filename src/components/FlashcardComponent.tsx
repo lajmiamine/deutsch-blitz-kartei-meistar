@@ -1,4 +1,3 @@
-
 import { useState, useEffect, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -244,15 +243,13 @@ const FlashcardComponent = ({
               )}
             </div>
             
-            <div className="space-y-1 text-center">
-              {/* Only show translation for incorrect answers */}
-              {feedback === "incorrect" && (
-                <>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">Translates to</p>
-                  <h3 className="text-2xl font-bold dark:text-white">{correctAnswer}</h3>
-                </>
-              )}
-            </div>
+            {/* Only show translation for incorrect answers */}
+            {feedback === "incorrect" && (
+              <div className="space-y-1 text-center">
+                <p className="text-sm text-muted-foreground dark:text-gray-400">Translates to</p>
+                <h3 className="text-2xl font-bold dark:text-white">{correctAnswer}</h3>
+              </div>
+            )}
             
             {feedback && (
               <div className={`text-center ${
