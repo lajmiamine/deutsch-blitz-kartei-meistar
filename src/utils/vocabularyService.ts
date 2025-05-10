@@ -439,3 +439,41 @@ export const updateSourceName = (oldSource: string, newSource: string): number =
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
   return updatedCount;
 };
+
+// Export vocabulary to JSON file
+export const exportVocabulary = (): string => {
+  const vocabulary = getVocabulary();
+  const data = JSON.stringify(vocabulary, null, 2);
+  return data;
+};
+
+// Import vocabulary from JSON file
+export const importVocabulary = (jsonData: string): { success: boolean; wordCount: number } => {
+  try {
+    const vocabulary = JSON.parse(jsonData) as VocabularyWord[];
+    
+    // Validate the data structure
+    const isValid = Array.isArray(vocabulary) && 
+      vocabulary.every(word => 
+        typeof word.id === 'string' &&
+        typeof word.german === 'string' &&
+        typeof word.english === 'string' &&
+        typeof word.approved === 'boolean' &&
+        typeof word.difficulty === 'number' &&
+        typeof word.timesCorrect === 'number' &&
+        typeof word.timesIncorrect === 'number'
+      );
+    
+    if (!isValid) {
+      return { success: false, wordCount: 0 };
+    }
+    
+    // Save the imported vocabulary to localStorage
+    localStorage.setItem(LOCAL_STORAGE_KEY, jsonData);
+    
+    return { success: true, wordCount: vocabulary.length };
+  } catch (error) {
+    console.error('Error importing vocabulary:', error);
+    return { success: false, wordCount: 0 };
+  }
+};

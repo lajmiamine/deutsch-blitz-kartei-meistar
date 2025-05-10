@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,9 @@ import {
   getApprovedVocabularyBySource,
   deleteWordsBySource,
   updateDifficultyBySource,
-  updateSourceName
+  updateSourceName,
+  exportVocabulary,
+  importVocabulary
 } from "@/utils/vocabularyService";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
@@ -49,7 +51,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { FileText, Trash, Settings, Edit } from "lucide-react";
+import { FileText, Trash, Settings, Edit, Download, Upload } from "lucide-react";
 
 const AdminPanel = () => {
   const { toast } = useToast();
@@ -69,6 +71,9 @@ const AdminPanel = () => {
   const [currentSourceToRename, setCurrentSourceToRename] = useState<string | null>(null);
   const [newSourceName, setNewSourceName] = useState("");
 
+  // File import reference
+  const importFileRef = useRef<HTMLInputElement>(null);
+  
   useEffect(() => {
     // Check admin status from localStorage
     const adminStatus = localStorage.getItem("isAdmin") === "true";
@@ -245,6 +250,71 @@ const AdminPanel = () => {
         duration: 3000,
       });
     }
+  };
+
+  // Export vocabulary to a file
+  const handleExportVocabulary = () => {
+    const data = exportVocabulary();
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `german-vocabulary-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Vocabulary Exported",
+      description: `Successfully exported ${vocabulary.length} vocabulary words to JSON file.`,
+      duration: 3000,
+    });
+  };
+
+  // Import vocabulary from a file
+  const handleImportVocabulary = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      
+      if (content) {
+        const result = importVocabulary(content);
+        
+        if (result.success) {
+          setVocabulary(getVocabulary());
+          setFileSources(getAllSources());
+          
+          toast({
+            title: "Vocabulary Imported",
+            description: `Successfully imported ${result.wordCount} vocabulary words.`,
+            duration: 3000,
+          });
+        } else {
+          toast({
+            title: "Import Failed",
+            description: "The file format is invalid. Please provide a valid vocabulary JSON file.",
+            variant: "destructive",
+            duration: 3000,
+          });
+        }
+      }
+    };
+    
+    reader.readAsText(file);
+    // Reset the input so the same file can be selected again
+    if (importFileRef.current) {
+      importFileRef.current.value = '';
+    }
+  };
+  
+  // Handle file input click
+  const triggerImportFileSelect = () => {
+    importFileRef.current?.click();
   };
 
   // View words from a specific source
@@ -576,7 +646,41 @@ const AdminPanel = () => {
               <CardHeader>
                 <CardTitle>Vocabulary Settings</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                {/* Data Backup & Restore Section */}
+                <div className="border-b pb-6">
+                  <h3 className="text-lg font-medium mb-3">Backup & Restore</h3>
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    Export all vocabulary data to a JSON file for backup or transfer to another device.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <Button 
+                      variant="secondary" 
+                      onClick={handleExportVocabulary}
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Export All Data
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      onClick={triggerImportFileSelect}
+                      className="flex items-center gap-2"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Import From File
+                    </Button>
+                    <input
+                      type="file"
+                      ref={importFileRef}
+                      onChange={handleImportVocabulary}
+                      accept=".json"
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+                
                 <div>
                   <p className="mb-2 text-sm text-muted-foreground">
                     Reset vocabulary to default values. This will remove all custom words.
