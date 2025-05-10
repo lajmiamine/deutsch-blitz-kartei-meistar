@@ -1,3 +1,4 @@
+
 export interface VocabularyWord {
   id: string;
   german: string;
@@ -7,6 +8,8 @@ export interface VocabularyWord {
   timesCorrect: number;
   timesIncorrect: number;
   source?: string;  // Optional field to track which file the word came from
+  correctStreak?: number; // Track consecutive correct answers for mastery
+  mastered?: boolean; // Whether the word is considered mastered
 }
 
 const LOCAL_STORAGE_KEY = 'german_vocabulary';
@@ -264,6 +267,24 @@ export const updateWordStatistics = (id: string, wasCorrect: boolean): void => {
       const timesCorrect = wasCorrect ? word.timesCorrect + 1 : word.timesCorrect;
       const timesIncorrect = wasCorrect ? word.timesIncorrect : word.timesIncorrect + 1;
       
+      // Track consecutive correct answers for mastery
+      let correctStreak = word.correctStreak || 0;
+      if (wasCorrect) {
+        correctStreak += 1;
+      } else {
+        correctStreak = 0; // Reset streak on incorrect answer
+      }
+      
+      // Determine mastery status
+      // Mastery requires 2 consecutive correct answers
+      // If they've had an incorrect answer, requires 3 consecutive correct answers
+      let mastered = word.mastered || false;
+      if (timesIncorrect > 0 && correctStreak >= 3) {
+        mastered = true;
+      } else if (timesIncorrect === 0 && correctStreak >= 2) {
+        mastered = true;
+      }
+      
       // Adjust difficulty based on correct/incorrect ratio
       let newDifficulty = word.difficulty;
       const totalAttempts = timesCorrect + timesIncorrect;
@@ -279,10 +300,39 @@ export const updateWordStatistics = (id: string, wasCorrect: boolean): void => {
         ...word, 
         timesCorrect, 
         timesIncorrect, 
-        difficulty: newDifficulty 
+        difficulty: newDifficulty,
+        correctStreak,
+        mastered
       };
     }
     return word;
+  });
+  
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+};
+
+// Get vocabulary words with mastery progress
+export const getVocabularyWithProgress = (): VocabularyWord[] => {
+  const vocabulary = getVocabulary();
+  return vocabulary.map(word => {
+    // Ensure mastery properties exist
+    return {
+      ...word,
+      correctStreak: word.correctStreak || 0,
+      mastered: word.mastered || false
+    };
+  });
+};
+
+// Reset mastery for all words
+export const resetWordMasteryProgress = (): void => {
+  const vocabulary = getVocabulary();
+  const updatedVocabulary = vocabulary.map(word => {
+    return { 
+      ...word, 
+      correctStreak: 0,
+      mastered: false
+    };
   });
   
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));

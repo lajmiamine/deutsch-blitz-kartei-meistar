@@ -3,8 +3,9 @@ import { useState, useEffect, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { VocabularyWord } from "@/utils/vocabularyService";
-import { Trash2, Star } from "lucide-react";
+import { Trash2, Star, Progress } from "lucide-react";
 
 interface FlashcardComponentProps {
   word: VocabularyWord;
@@ -27,6 +28,7 @@ const FlashcardComponent = ({
   const [isFlipped, setIsFlipped] = useState(false);
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
   const [hint, setHint] = useState("");
+  const [showExplanation, setShowExplanation] = useState(false);
 
   // Determine which word to show based on direction
   const promptWord = direction === "german-to-english" ? word.german : word.english;
@@ -38,18 +40,22 @@ const FlashcardComponent = ({
     setIsFlipped(false);
     setFeedback(null);
     setHint("");
+    setShowExplanation(false);
   }, [word, direction]);
 
   const checkAnswer = () => {
     const normalizedUserAnswer = userAnswer.trim().toLowerCase();
     const normalizedCorrectAnswer = correctAnswer.trim().toLowerCase();
     
-    if (normalizedUserAnswer === normalizedCorrectAnswer) {
+    const isCorrect = normalizedUserAnswer === normalizedCorrectAnswer;
+    
+    if (isCorrect) {
       setFeedback("correct");
       onCorrect(word.id);
     } else {
       setFeedback("incorrect");
       onIncorrect(word.id);
+      setShowExplanation(true); // Only show explanation for incorrect answers
     }
     
     setIsFlipped(true);
@@ -108,6 +114,19 @@ const FlashcardComponent = ({
     }
   };
   
+  // Get mastery status badge
+  const getMasteryBadge = () => {
+    const requiredCorrect = (word.timesIncorrect || 0) > 0 ? 3 : 2;
+    const currentStreak = word.correctStreak || 0;
+    
+    if (word.mastered) {
+      return <Badge variant="success" className="ml-2">Mastered</Badge>;
+    } else if (currentStreak > 0) {
+      return <Badge variant="progress" className="ml-2">{currentStreak}/{requiredCorrect}</Badge>;
+    }
+    return null;
+  };
+  
   const difficultyInfo = getDifficultyInfo();
 
   // Show source if available
@@ -131,6 +150,7 @@ const FlashcardComponent = ({
                   <span className={`text-xs font-medium ${difficultyInfo.color} flex items-center gap-1`}>
                     <Star className="h-3 w-3" /> {difficultyInfo.label}
                   </span>
+                  {getMasteryBadge()}
                 </div>
                 <p className="text-sm text-muted-foreground dark:text-gray-400">
                   {direction === "german-to-english" ? "Translate to English" : "Translate to German"}
@@ -206,6 +226,7 @@ const FlashcardComponent = ({
                   <span className={`text-xs font-medium ${difficultyInfo.color} flex items-center gap-1`}>
                     <Star className="h-3 w-3" /> {difficultyInfo.label}
                   </span>
+                  {getMasteryBadge()}
                 </div>
                 <h3 className="text-2xl font-bold dark:text-white">{promptWord}</h3>
                 {sourceDisplay}
@@ -235,10 +256,13 @@ const FlashcardComponent = ({
                 <p className="font-medium text-lg">
                   {feedback === "correct" ? "Correct!" : "Incorrect!"}
                 </p>
-                {feedback === "incorrect" && (
-                  <p className="text-sm">
-                    Your answer: {userAnswer || "(empty)"}
-                  </p>
+                {/* Only show explanation for incorrect answers */}
+                {showExplanation && feedback === "incorrect" && (
+                  <div className="mt-2">
+                    <p className="text-sm">
+                      Your answer: {userAnswer || "(empty)"}
+                    </p>
+                  </div>
                 )}
               </div>
             )}

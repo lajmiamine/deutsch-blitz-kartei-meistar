@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import FlashcardComponent from "@/components/FlashcardComponent";
+import WordProgressDialog from "@/components/WordProgressDialog";
 import { 
   VocabularyWord, 
   getApprovedVocabulary, 
@@ -15,10 +15,11 @@ import {
   updateWordStatistics,
   getAllSources,
   getApprovedVocabularyBySource,
-  getWordCountByDifficulty
+  getWordCountByDifficulty,
+  getVocabularyWithProgress
 } from "@/utils/vocabularyService";
-import { CircleCheck, X, RefreshCw, ArrowRight, Play, Trophy } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { CircleCheck, X, RefreshCw, Play, Trophy, Progress } from "lucide-react";
+import { Progress as ProgressBar } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -304,6 +305,7 @@ const FlashcardGame = () => {
       <div className="container py-8 max-w-4xl">
         <h1 className="text-3xl font-bold mb-8 dark:text-white">Flashcard Game</h1>
         
+        {/* Word Selection UI - shown when not in active game */}
         {!gameActive && !showResults && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card className="dark:bg-gray-800 dark:border-gray-700">
@@ -419,7 +421,7 @@ const FlashcardGame = () => {
                   <span>Completed: {answeredCount}/{filteredWords.length} words</span>
                   <span>{progressPercentage}%</span>
                 </div>
-                <Progress value={progressPercentage} className="h-2" />
+                <ProgressBar value={progressPercentage} className="h-2" />
                 
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-6">
@@ -433,6 +435,9 @@ const FlashcardGame = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    {/* Word Progress Dialog */}
+                    <WordProgressDialog words={words} />
+                    
                     {gameActive && (
                       <Button 
                         variant="outline" 
