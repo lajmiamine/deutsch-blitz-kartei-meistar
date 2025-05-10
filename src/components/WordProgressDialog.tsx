@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -95,7 +95,7 @@ const WordProgressDialog = ({ words, gameSessionOnly = false }: WordProgressDial
   
   // Update cached words when the external words prop changes
   // This ensures we stay in sync with game resets and other changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (gameSessionOnly) {
       setCachedWords(words);
     }

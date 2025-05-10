@@ -316,6 +316,8 @@ const FlashcardGame = () => {
     // If there are no more unmastered words, show completion message but don't end game
     if (unmasteredWords.length === 0) {
       console.log("No more unmastered words left");
+      // End the game automatically when all words are mastered
+      endGame();
       return;
     }
     
