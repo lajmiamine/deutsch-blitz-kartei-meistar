@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, ChangeEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
-import { XCircle } from "lucide-react";
+import { XCircle, Upload } from "lucide-react";
+import { extractVocabularyFromText } from "@/utils/textParser";
 
 interface TextUploaderProps {
   onFileImported?: () => void;
@@ -24,12 +25,13 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   const [extractedWords, setExtractedWords] = useState<Array<{ german: string; english: string; difficulty?: number }>>([]);
   const [importStatus, setImportStatus] = useState<ImportStatus>("none");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   
   const extractVocabulary = useCallback(() => {
-    if (!text.trim()) {
+    if (!text.trim() && !file) {
       toast({
-        title: "No Text Provided",
-        description: "Please paste the text containing vocabulary words.",
+        title: "No Content Provided",
+        description: "Please paste text or upload a file containing vocabulary words.",
         variant: "destructive",
       });
       return;
@@ -38,27 +40,52 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setIsProcessing(true);
     setImportStatus("processing");
     
-    // Basic regex to split lines and extract words
-    const lines = text.split('\n').filter(line => line.trim() !== '');
-    const newWords: Array<{ german: string; english: string; difficulty?: number }> = [];
-    
-    lines.forEach(line => {
-      const parts = line.split('-').map(part => part.trim());
-      if (parts.length === 2) {
-        const [german, english] = parts;
-        newWords.push({ german, english });
+    if (file) {
+      // Process file using the existing extractVocabularyFromText function
+      extractVocabularyFromText(file, 'de', 'en')
+        .then(parsedWords => {
+          setExtractedWords(parsedWords);
+          setImportStatus("extracted");
+          
+          // Call the onWordsExtracted prop if provided
+          if (onWordsExtracted && parsedWords.length > 0) {
+            onWordsExtracted(parsedWords, source);
+          }
+        })
+        .catch(error => {
+          toast({
+            title: "Error Processing File",
+            description: error.message || "Failed to extract vocabulary from file.",
+            variant: "destructive",
+          });
+        })
+        .finally(() => {
+          setIsProcessing(false);
+        });
+    } else {
+      // Process text input (existing functionality)
+      // Basic regex to split lines and extract words
+      const lines = text.split('\n').filter(line => line.trim() !== '');
+      const newWords: Array<{ german: string; english: string; difficulty?: number }> = [];
+      
+      lines.forEach(line => {
+        const parts = line.split('-').map(part => part.trim());
+        if (parts.length === 2) {
+          const [german, english] = parts;
+          newWords.push({ german, english });
+        }
+      });
+      
+      setExtractedWords(newWords);
+      setImportStatus("extracted");
+      setIsProcessing(false);
+      
+      // Call the onWordsExtracted prop if provided
+      if (onWordsExtracted && newWords.length > 0) {
+        onWordsExtracted(newWords, source);
       }
-    });
-    
-    setExtractedWords(newWords);
-    setImportStatus("extracted");
-    setIsProcessing(false);
-    
-    // Call the onWordsExtracted prop if provided
-    if (onWordsExtracted && newWords.length > 0) {
-      onWordsExtracted(newWords, source);
     }
-  }, [text, toast, source, onWordsExtracted]);
+  }, [text, toast, source, onWordsExtracted, file]);
   
   const handleImport = async () => {
     if (extractedWords.length === 0) {
@@ -93,6 +120,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setSource("");
     setExtractedWords([]);
     setImportStatus("none");
+    setFile(null);
   };
   
   const handleClear = () => {
@@ -100,6 +128,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setSource("");
     setExtractedWords([]);
     setImportStatus("none");
+    setFile(null);
   };
   
   const handleRemoveWord = (index: number) => {
@@ -108,12 +137,23 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setExtractedWords(updatedWords);
   };
 
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      // If source is empty, use filename as source
+      if (!source) {
+        setSource(selectedFile.name.replace(/\.[^/.]+$/, "")); // Remove extension
+      }
+    }
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
         <CardTitle>Import Vocabulary from Text</CardTitle>
         <CardDescription>
-          Paste text with German words and their English translations.
+          Paste text or upload a file with German words and their English translations.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -127,16 +167,52 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
             className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
           />
         </div>
+        
         <div className="grid gap-2">
-          <Label htmlFor="vocabulary">Vocabulary Text</Label>
+          <Label htmlFor="fileUpload">Upload File (Optional)</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="fileUpload"
+              type="file"
+              onChange={handleFileChange}
+              accept=".txt,.doc,.docx,.pdf"
+              className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="dark:bg-gray-700 dark:hover:bg-gray-600"
+              disabled={!file}
+              onClick={() => setFile(null)}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+          </div>
+          {file && (
+            <p className="text-sm text-muted-foreground">
+              File selected: {file.name}
+            </p>
+          )}
+        </div>
+        
+        <div className="grid gap-2">
+          <Label htmlFor="vocabulary">Or Paste Vocabulary Text</Label>
           <Textarea
             id="vocabulary"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="German - English"
             className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            disabled={!!file}
           />
+          {file && (
+            <p className="text-sm text-muted-foreground">
+              Text input is disabled when a file is selected.
+            </p>
+          )}
         </div>
+        
         {extractedWords.length > 0 && (
           <div className="grid gap-2">
             <Label>Extracted Words</Label>
@@ -168,7 +244,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
         >
           Clear
         </Button>
-        {importStatus === "extracted" || importStatus === "imported" ? (
+        {importStatus === "extracted" ? (
           <Button 
             onClick={handleImport} 
             disabled={isProcessing}
