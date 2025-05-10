@@ -487,7 +487,9 @@ const AdminPanel = () => {
                                 <CollapsibleTrigger asChild>
                                   <Button variant="ghost" className="p-0 hover:bg-transparent">
                                     <FileText className="h-4 w-4 mr-2" />
-                                    <span className="font-medium">{source}</span>
+                                    <span className="font-medium">
+                                      {source === "all-words" ? "All words" : source}
+                                    </span>
                                   </Button>
                                 </CollapsibleTrigger>
                                 <div className="text-sm text-muted-foreground mt-1">
