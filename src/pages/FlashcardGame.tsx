@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,10 +30,12 @@ const FlashcardGame = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [direction, setDirection] = useState<"german-to-english" | "english-to-german">("german-to-english");
   
-  // New state for wrong words tracking
   const [wrongWords, setWrongWords] = useState<VocabularyWord[]>([]);
   const [showingWrongWords, setShowingWrongWords] = useState(false);
   const [wordCorrectCounts, setWordCorrectCounts] = useState<Record<string, number>>({});
+  
+  // New state for tracking if a word had mistakes
+  const [wordMistakes, setWordMistakes] = useState<Record<string, boolean>>({});
 
   // Load words based on selected difficulty
   const loadWords = useCallback(() => {
@@ -69,6 +72,7 @@ const FlashcardGame = () => {
     // Reset wrong words and correct counts
     setWrongWords([]);
     setWordCorrectCounts({});
+    setWordMistakes({});
     setShowingWrongWords(false);
   }, [difficulty, toast]);
 
@@ -77,10 +81,14 @@ const FlashcardGame = () => {
     loadWords();
   }, [loadWords]);
 
-  // Check if we've completed all words (all words have been answered correctly 2 times)
+  // Check if we've completed all words 
+  // (all words have been answered correctly 2 times, or 3 times if there were mistakes)
   useEffect(() => {
     if (gameStarted && words.length > 0) {
-      const allWordsCompleted = words.every(word => (wordCorrectCounts[word.id] || 0) >= 2);
+      const allWordsCompleted = words.every(word => {
+        const requiredCorrectAnswers = wordMistakes[word.id] ? 3 : 2;
+        return (wordCorrectCounts[word.id] || 0) >= requiredCorrectAnswers;
+      });
       
       if (allWordsCompleted) {
         toast({
@@ -91,7 +99,7 @@ const FlashcardGame = () => {
         setGameStarted(false);
       }
     }
-  }, [wordCorrectCounts, words, gameStarted, score, totalAttempts, toast]);
+  }, [wordCorrectCounts, words, wordMistakes, gameStarted, score, totalAttempts, toast]);
 
   const startGame = () => {
     loadWords();
@@ -102,6 +110,7 @@ const FlashcardGame = () => {
     setGameStarted(true);
     setWrongWords([]);
     setWordCorrectCounts({});
+    setWordMistakes({});
     setShowingWrongWords(false);
   };
 
@@ -134,6 +143,18 @@ const FlashcardGame = () => {
       duration: 1000,
     });
     
+    // Check if this word is now mastered
+    const requiredCorrectAnswers = wordMistakes[wordId] ? 3 : 2;
+    const newCorrectCount = (wordCorrectCounts[wordId] || 0) + 1;
+    
+    if (newCorrectCount >= requiredCorrectAnswers) {
+      toast({
+        title: "Word Mastered!",
+        description: `You've mastered "${currentWord.german}"`,
+        duration: 2000,
+      });
+    }
+    
     // Move to next word
     goToNextWord();
   };
@@ -153,6 +174,12 @@ const FlashcardGame = () => {
       setWrongWords(prev => [...prev, currentWord]);
     }
     
+    // Mark this word as having had mistakes (requiring 3 correct answers)
+    setWordMistakes(prev => ({
+      ...prev,
+      [wordId]: true
+    }));
+    
     // Show toast notification
     toast({
       title: "Incorrect!",
@@ -160,8 +187,31 @@ const FlashcardGame = () => {
       duration: 1000,
     });
     
+    // Shuffle the words more aggressively after a wrong answer
+    shuffleWords();
+    
     // Move to next word
     goToNextWord();
+  };
+
+  const shuffleWords = () => {
+    setWords(prev => {
+      // Create a temporary array without the current word
+      const currentWord = prev[currentWordIndex];
+      const otherWords = prev.filter((_, i) => i !== currentWordIndex);
+      
+      // Shuffle the other words
+      const shuffled = [...otherWords].sort(() => Math.random() - 0.5);
+      
+      // Reinsert the current word at a random position
+      const randomPosition = Math.floor(Math.random() * (shuffled.length + 1));
+      shuffled.splice(randomPosition, 0, currentWord);
+      
+      return shuffled;
+    });
+    
+    // Reset current index since the array changed
+    setCurrentWordIndex(0);
   };
 
   const handleSkip = () => {
@@ -171,8 +221,11 @@ const FlashcardGame = () => {
 
   // Function to determine the next word
   const goToNextWord = () => {
-    // Filter out words that have been answered correctly 2 times
-    const remainingWords = words.filter(word => (wordCorrectCounts[word.id] || 0) < 2);
+    // Filter out words that have been answered correctly the required number of times
+    const remainingWords = words.filter(word => {
+      const requiredCorrectAnswers = wordMistakes[word.id] ? 3 : 2;
+      return (wordCorrectCounts[word.id] || 0) < requiredCorrectAnswers;
+    });
     
     if (remainingWords.length === 0) {
       // All words have been completed
@@ -183,8 +236,12 @@ const FlashcardGame = () => {
     let nextIndex = (currentWordIndex + 1) % words.length;
     let attempts = 0;
     
-    // Skip words that have been answered correctly 2 times
-    while ((wordCorrectCounts[words[nextIndex].id] || 0) >= 2 && attempts < words.length) {
+    // Skip words that have been mastered
+    while (attempts < words.length) {
+      const requiredCorrectAnswers = wordMistakes[words[nextIndex].id] ? 3 : 2;
+      if ((wordCorrectCounts[words[nextIndex].id] || 0) < requiredCorrectAnswers) {
+        break;
+      }
       nextIndex = (nextIndex + 1) % words.length;
       attempts++;
     }
@@ -233,8 +290,11 @@ const FlashcardGame = () => {
     });
   };
 
-  // Count how many words have been mastered (answered correctly 2 times)
-  const masteredWordCount = words.filter(word => (wordCorrectCounts[word.id] || 0) >= 2).length;
+  // Count how many words have been mastered
+  const masteredWordCount = words.filter(word => {
+    const requiredCorrectAnswers = wordMistakes[word.id] ? 3 : 2;
+    return (wordCorrectCounts[word.id] || 0) >= requiredCorrectAnswers;
+  }).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -360,6 +420,13 @@ const FlashcardGame = () => {
                     onClick={resetGame}
                   >
                     <RefreshCcw className="mr-1 h-4 w-4" /> Reset Game
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm" 
+                    onClick={shuffleWords}
+                  >
+                    <RefreshCcw className="mr-1 h-4 w-4" /> Shuffle Words
                   </Button>
                 </div>
               </CardContent>
