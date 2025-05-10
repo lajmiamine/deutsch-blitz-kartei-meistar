@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +19,7 @@ import {
   getWordCountByDifficulty,
   getVocabularyWithProgress
 } from "@/utils/vocabularyService";
-import { CircleCheck, X, RefreshCw, Play, Trophy, Progress } from "lucide-react";
+import { CircleCheck, X, RefreshCw, Play, Trophy, BarChart } from "lucide-react";
 import { Progress as ProgressBar } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {

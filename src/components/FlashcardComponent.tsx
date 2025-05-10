@@ -1,11 +1,10 @@
-
 import { useState, useEffect, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { VocabularyWord } from "@/utils/vocabularyService";
-import { Trash2, Star, Progress } from "lucide-react";
+import { Trash2, Star, BarChart } from "lucide-react";
 
 interface FlashcardComponentProps {
   word: VocabularyWord;

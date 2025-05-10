@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { VocabularyWord } from "@/utils/vocabularyService";
-import { Star, Progress as ProgressIcon } from "lucide-react";
+import { Star, BarChart } from "lucide-react";
 
 interface WordProgressDialogProps {
   words: VocabularyWord[];
@@ -45,7 +45,7 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
           size="sm"
           className="flex items-center gap-1 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
         >
-          <ProgressIcon className="h-4 w-4" />
+          <BarChart className="h-4 w-4" />
           Word Progress
         </Button>
       </DialogTrigger>
