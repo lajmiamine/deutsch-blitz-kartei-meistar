@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import TextUploader from "@/components/TextUploader";
 import VocabularyList from "@/components/VocabularyList";
@@ -15,8 +16,23 @@ import {
   deleteVocabularyWord,
   updateVocabularyWord,
   addMultipleVocabularyWords,
-  clearVocabulary
+  clearVocabulary,
+  getAllSources
 } from "@/utils/vocabularyService";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { FileText } from "lucide-react";
 
 const AdminPanel = () => {
   const { toast } = useToast();
@@ -24,6 +40,9 @@ const AdminPanel = () => {
   const [newGerman, setNewGerman] = useState("");
   const [newEnglish, setNewEnglish] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [fileSources, setFileSources] = useState<string[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string>("");
+  const [isSourcesOpen, setIsSourcesOpen] = useState(false);
 
   useEffect(() => {
     // Check admin status from localStorage
@@ -34,18 +53,28 @@ const AdminPanel = () => {
     const loadVocabulary = () => {
       const words = getVocabulary();
       setVocabulary(words);
+      
+      // Get all available file sources
+      const sources = getAllSources();
+      setFileSources(sources);
     };
     
     loadVocabulary();
   }, []);
 
-  const handleTextWordsExtracted = (words: Array<{ german: string; english: string }>) => {
-    addMultipleVocabularyWords(words);
+  const handleTextWordsExtracted = (
+    words: Array<{ german: string; english: string }>,
+    source?: string
+  ) => {
+    addMultipleVocabularyWords(words, source);
+    
+    // Refresh vocabulary and sources
     setVocabulary(getVocabulary());
+    setFileSources(getAllSources());
     
     toast({
       title: "Words Imported",
-      description: `Added ${words.length} words from text file. They need approval before being used in flashcards.`,
+      description: `Added ${words.length} words from text file${source ? ` "${source}"` : ''}. They need approval before being used in flashcards.`,
       duration: 5000,
     });
   };
@@ -111,6 +140,7 @@ const AdminPanel = () => {
     if (window.confirm("Are you sure you want to reset all vocabulary? This cannot be undone.")) {
       clearVocabulary();
       setVocabulary(getVocabulary());
+      setFileSources([]);
       
       toast({
         title: "Vocabulary Reset",
@@ -118,6 +148,70 @@ const AdminPanel = () => {
         duration: 3000,
       });
     }
+  };
+
+  // Filter vocabulary by source
+  const filteredVocabulary = selectedSource 
+    ? vocabulary.filter(word => word.source === selectedSource)
+    : vocabulary;
+
+  // View words from a specific source
+  const handleViewSourceWords = (source: string) => {
+    setSelectedSource(source);
+    
+    toast({
+      title: "Source Filter Applied",
+      description: `Showing words imported from "${source}"`,
+      duration: 2000,
+    });
+  };
+
+  // Clear source filter
+  const clearSourceFilter = () => {
+    setSelectedSource("");
+  };
+
+  // Create flashcards from a specific source
+  const handleCreateSourceFlashcards = (source: string) => {
+    // Get the source words and ensure they're approved
+    const sourceWords = vocabulary.filter(word => word.source === source);
+    
+    // Check if there are any words from this source
+    if (sourceWords.length === 0) {
+      toast({
+        title: "No Words Found",
+        description: `No words found from source "${source}"`,
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Count approved words
+    const approvedWords = sourceWords.filter(word => word.approved);
+    
+    // If no approved words, inform the user
+    if (approvedWords.length === 0) {
+      toast({
+        title: "No Approved Words",
+        description: `There are no approved words from "${source}". Please approve some words first.`,
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Store the selected source in localStorage for the game to use
+    localStorage.setItem("flashcard_source", source);
+    
+    toast({
+      title: "Flashcards Ready",
+      description: `${approvedWords.length} words from "${source}" are ready for the flashcard game.`,
+      duration: 3000,
+    });
+    
+    // Navigate to the flashcard game
+    window.location.href = "/flashcards";
   };
 
   if (!isAdmin) {
@@ -148,6 +242,7 @@ const AdminPanel = () => {
           <TabsList className="mb-6">
             <TabsTrigger value="vocabulary">Vocabulary Management</TabsTrigger>
             <TabsTrigger value="textimport">Import from Text</TabsTrigger>
+            <TabsTrigger value="sources">File Sources</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
           
@@ -177,9 +272,29 @@ const AdminPanel = () => {
             </Card>
 
             <div className="mt-8">
-              <h3 className="text-xl font-semibold mb-4">Vocabulary List</h3>
+              {selectedSource && (
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      Filtering by source: "{selectedSource}"
+                    </span>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={clearSourceFilter}>
+                    Clear Filter
+                  </Button>
+                </div>
+              )}
+              
+              <h3 className="text-xl font-semibold mb-4">
+                {selectedSource 
+                  ? `Words from "${selectedSource}" (${filteredVocabulary.length})` 
+                  : `Vocabulary List (${vocabulary.length})`
+                }
+              </h3>
+              
               <VocabularyList
-                words={vocabulary}
+                words={filteredVocabulary}
                 onApproveWord={handleApproveWord}
                 onDeleteWord={handleDeleteWord}
                 onEditWord={handleEditWord}
@@ -188,26 +303,92 @@ const AdminPanel = () => {
           </TabsContent>
 
           <TabsContent value="textimport">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <TextUploader onWordsExtracted={handleTextWordsExtracted} />
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Text Import Instructions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="mb-4 text-muted-foreground">
-                    Upload text files containing words you want to learn. The system will extract words that are 4 letters or longer.
-                  </p>
-                  <p className="mb-4 text-muted-foreground">
-                    Select the source language of your text and the target language for translations. Review the extracted words and select which ones you want to import.
-                  </p>
-                  <p className="text-muted-foreground">
-                    <strong>Note:</strong> After import, you'll need to approve the words in the Vocabulary Management section before they appear in flashcards.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <TextUploader onWordsExtracted={handleTextWordsExtracted} />
+          </TabsContent>
+
+          <TabsContent value="sources">
+            <Card>
+              <CardHeader>
+                <CardTitle>Text File Sources</CardTitle>
+                <CardDescription>
+                  View and manage vocabulary words by their source text files
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {fileSources.length === 0 ? (
+                  <div className="text-center py-8 border rounded-md">
+                    <FileText className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">
+                      No text files have been imported yet. 
+                      Import a text file from the "Import from Text" tab.
+                    </p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[400px] rounded-md border p-4">
+                    <div className="space-y-2">
+                      {fileSources.map((source) => {
+                        const sourceWords = vocabulary.filter(word => word.source === source);
+                        const approvedCount = sourceWords.filter(word => word.approved).length;
+                        
+                        return (
+                          <Collapsible
+                            key={source}
+                            open={isSourcesOpen}
+                            onOpenChange={setIsSourcesOpen}
+                            className="border rounded-md"
+                          >
+                            <div className="flex items-center justify-between p-4">
+                              <div>
+                                <CollapsibleTrigger asChild>
+                                  <Button variant="ghost" className="p-0 hover:bg-transparent">
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    <span className="font-medium">{source}</span>
+                                  </Button>
+                                </CollapsibleTrigger>
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  {sourceWords.length} words ({approvedCount} approved)
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleViewSourceWords(source)}
+                                >
+                                  View Words
+                                </Button>
+                                
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handleCreateSourceFlashcards(source)}
+                                  disabled={approvedCount === 0}
+                                >
+                                  Create Flashcards
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            <CollapsibleContent className="p-4 pt-0 border-t">
+                              <div className="text-sm space-y-1">
+                                <p><strong>Total Words:</strong> {sourceWords.length}</p>
+                                <p><strong>Approved Words:</strong> {approvedCount}</p>
+                                <p><strong>Pending Approval:</strong> {sourceWords.length - approvedCount}</p>
+                                {approvedCount === 0 && (
+                                  <p className="text-amber-600">
+                                    You need to approve some words before creating flashcards.
+                                  </p>
+                                )}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="settings">
@@ -235,6 +416,9 @@ const AdminPanel = () => {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Pending Approval: {vocabulary.filter(w => !w.approved).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Imported Files: {fileSources.length}
                   </p>
                 </div>
               </CardContent>

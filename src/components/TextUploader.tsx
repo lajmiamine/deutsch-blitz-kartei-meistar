@@ -3,15 +3,27 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { extractVocabularyFromText, ParsedWord } from "@/utils/textParser";
 import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
-import { Text, Check, X } from "lucide-react";
+import { Check, X, Info, FileText } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  HoverCard, 
+  HoverCardContent, 
+  HoverCardTrigger 
+} from "@/components/ui/hover-card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface TextUploaderProps {
-  onWordsExtracted?: (words: Array<{ german: string; english: string }>) => void;
+  onWordsExtracted?: (words: Array<{ german: string; english: string }>, source?: string) => void;
 }
 
 // Language options for source and target
@@ -32,12 +44,15 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const [extractedWords, setExtractedWords] = useState<ParsedWord[]>([]);
   const [importStatus, setImportStatus] = useState<"idle" | "processing" | "extracted" | "imported">("idle");
   
-  // New state for language selection
+  // File source tracking
+  const [fileSource, setFileSource] = useState<string>("");
+  
+  // Language selection
   const [sourceLanguage, setSourceLanguage] = useState<string>("de");
   const [targetLanguage, setTargetLanguage] = useState<string>("en");
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   
-  // State for word selection
+  // Word selection
   const [selectedWords, setSelectedWords] = useState<Record<string, boolean>>({});
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,6 +60,8 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
       const selectedFile = e.target.files[0];
       if (selectedFile.name.toLowerCase().endsWith(".txt")) {
         setFile(selectedFile);
+        // Use the filename (without extension) as the source identifier
+        setFileSource(selectedFile.name.replace(/\.[^/.]+$/, ""));
         setError(null);
         setImportStatus("idle");
         setExtractedWords([]);
@@ -127,16 +144,17 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
     }
 
     try {
-      addMultipleVocabularyWords(selectedWordsToImport);
+      // Pass the file source to track where words came from
+      addMultipleVocabularyWords(selectedWordsToImport, fileSource);
       setImportStatus("imported");
       
       toast({
         title: "Import Successful",
-        description: `${selectedWordsToImport.length} words have been added to your vocabulary.`,
+        description: `${selectedWordsToImport.length} words have been added to your vocabulary from "${fileSource}".`,
       });
       
       if (onWordsExtracted) {
-        onWordsExtracted(selectedWordsToImport);
+        onWordsExtracted(selectedWordsToImport, fileSource);
       }
     } catch (error) {
       toast({
@@ -166,22 +184,43 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const selectedCount = Object.values(selectedWords).filter(Boolean).length;
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Import Vocabulary from Text</CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CardTitle>Import Vocabulary from Text</CardTitle>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Info className="h-4 w-4" />
+                    <span className="sr-only">Text import information</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="max-w-xs">Upload a .txt file to extract words for your vocabulary list.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
         <CardDescription>
           Upload a text file to extract and translate vocabulary words
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center gap-4">
-          <Input
-            id="text"
-            type="file"
-            accept=".txt"
-            onChange={handleFileChange}
-            disabled={isUploading || importStatus === "extracted"}
-          />
+          <div className="flex-1 relative">
+            <Input
+              id="text"
+              type="file"
+              accept=".txt"
+              onChange={handleFileChange}
+              disabled={isUploading || importStatus === "extracted"}
+              className="cursor-pointer"
+            />
+            <FileText className="absolute right-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+          </div>
           <Button
             onClick={handleExtractWords}
             disabled={!file || isUploading || importStatus === "extracted"}
@@ -208,7 +247,29 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
 
         {showLanguageSelector && (
           <div className="border rounded-md p-4 space-y-4">
-            <h3 className="font-medium mb-2">Select Languages</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium mb-2">Select Languages</h3>
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </HoverCardTrigger>
+                <HoverCardContent side="top" className="w-80">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Language Selection Tips:</h4>
+                    <p className="text-sm">
+                      Select the language of your text file as the "Source Language". 
+                      This is the language your uploaded text is written in.
+                    </p>
+                    <p className="text-sm">
+                      Choose the language you want translations in as the "Target Language".
+                      Words will be added to your vocabulary with both languages.
+                    </p>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Source Language:</label>
@@ -257,7 +318,7 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
           <div className="border rounded-md p-4 mt-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-medium">
-                Extracted {extractedWords.length} words:
+                Extracted {extractedWords.length} words from "{fileSource}":
               </h3>
               <div className="flex items-center gap-4">
                 <Button 
@@ -279,43 +340,46 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
             <p className="text-sm text-muted-foreground mb-3">
               {selectedCount} of {extractedWords.length} words selected for import
             </p>
-            <div className="max-h-60 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-1 w-10">Import</th>
-                    <th className="text-left py-2 px-1">
-                      {sourceLanguage === "de" ? "German" : 
-                       sourceLanguage === "en" ? "English" :
-                       sourceLanguage === "fr" ? "French" :
-                       sourceLanguage === "es" ? "Spanish" :
-                       sourceLanguage === "it" ? "Italian" : "Source"}
-                    </th>
-                    <th className="text-left py-2 px-1">
-                      {targetLanguage === "de" ? "German" : 
-                       targetLanguage === "en" ? "English" :
-                       targetLanguage === "fr" ? "French" :
-                       targetLanguage === "es" ? "Spanish" :
-                       targetLanguage === "it" ? "Italian" : "Target"}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {extractedWords.map((word, index) => (
-                    <tr key={index} className="border-b border-gray-100">
-                      <td className="py-1 px-1">
-                        <Checkbox
-                          checked={selectedWords[index.toString()] === true}
-                          onCheckedChange={() => toggleWordSelection(index.toString())}
-                        />
-                      </td>
-                      <td className="py-1 px-1">{word.german}</td>
-                      <td className="py-1 px-1">{word.english}</td>
+            
+            <ScrollArea className="h-80 rounded border p-2">
+              <div className="w-full">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b sticky top-0 bg-background z-10">
+                      <th className="text-left py-2 px-1 w-10">Import</th>
+                      <th className="text-left py-2 px-1">
+                        {sourceLanguage === "de" ? "German" : 
+                        sourceLanguage === "en" ? "English" :
+                        sourceLanguage === "fr" ? "French" :
+                        sourceLanguage === "es" ? "Spanish" :
+                        sourceLanguage === "it" ? "Italian" : "Source"}
+                      </th>
+                      <th className="text-left py-2 px-1">
+                        {targetLanguage === "de" ? "German" : 
+                        targetLanguage === "en" ? "English" :
+                        targetLanguage === "fr" ? "French" :
+                        targetLanguage === "es" ? "Spanish" :
+                        targetLanguage === "it" ? "Italian" : "Target"}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {extractedWords.map((word, index) => (
+                      <tr key={index} className="border-b border-gray-100 hover:bg-muted/50">
+                        <td className="py-1 px-1">
+                          <Checkbox
+                            checked={selectedWords[index.toString()] === true}
+                            onCheckedChange={() => toggleWordSelection(index.toString())}
+                          />
+                        </td>
+                        <td className="py-1 px-1">{word.german}</td>
+                        <td className="py-1 px-1">{word.english}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ScrollArea>
           </div>
         )}
       </CardContent>
@@ -327,7 +391,7 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
         >
           {importStatus === "imported"
             ? "Words Imported Successfully"
-            : `Import ${selectedCount} Selected Words`}
+            : `Import ${selectedCount} Selected Words from "${fileSource}"`}
         </Button>
       </CardFooter>
     </Card>

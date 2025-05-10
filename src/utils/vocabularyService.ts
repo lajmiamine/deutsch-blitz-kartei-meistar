@@ -1,4 +1,3 @@
-
 export interface VocabularyWord {
   id: string;
   german: string;
@@ -7,6 +6,7 @@ export interface VocabularyWord {
   difficulty: number;  // 1-easy, 2-medium, 3-hard
   timesCorrect: number;
   timesIncorrect: number;
+  source?: string;  // Optional field to track which file the word came from
 }
 
 const LOCAL_STORAGE_KEY = 'german_vocabulary';
@@ -47,7 +47,7 @@ export const getApprovedVocabulary = (): VocabularyWord[] => {
 };
 
 // Add a new vocabulary word
-export const addVocabularyWord = (german: string, english: string, approved: boolean = false): void => {
+export const addVocabularyWord = (german: string, english: string, approved: boolean = false, source?: string): void => {
   const vocabulary = getVocabulary();
   const newWord: VocabularyWord = {
     id: Date.now().toString(),
@@ -56,7 +56,8 @@ export const addVocabularyWord = (german: string, english: string, approved: boo
     approved,
     difficulty: 1,
     timesCorrect: 0,
-    timesIncorrect: 0
+    timesIncorrect: 0,
+    source
   };
   vocabulary.push(newWord);
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(vocabulary));
@@ -93,8 +94,8 @@ export const deleteVocabularyWord = (id: string): void => {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
 };
 
-// Add multiple vocabulary words (e.g., from PDF import)
-export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string }>): void => {
+// Add multiple vocabulary words (e.g., from text import)
+export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string }>, source?: string): void => {
   const vocabulary = getVocabulary();
   
   const newWords = words.map(word => ({
@@ -104,7 +105,8 @@ export const addMultipleVocabularyWords = (words: Array<{ german: string; englis
     approved: false, // New words need approval
     difficulty: 1,
     timesCorrect: 0,
-    timesIncorrect: 0
+    timesIncorrect: 0,
+    source: source || undefined
   }));
   
   const updatedVocabulary = [...vocabulary, ...newWords];
@@ -149,6 +151,24 @@ export const updateWordStatistics = (id: string, wasCorrect: boolean): void => {
 export const getVocabularyByDifficulty = (difficulty: number): VocabularyWord[] => {
   const vocabulary = getApprovedVocabulary();
   return vocabulary.filter(word => word.difficulty === difficulty);
+};
+
+// Get all vocabulary words by source
+export const getVocabularyBySource = (source: string): VocabularyWord[] => {
+  const vocabulary = getVocabulary();
+  return vocabulary.filter(word => word.source === source);
+};
+
+// Get all available sources
+export const getAllSources = (): string[] => {
+  const vocabulary = getVocabulary();
+  const sources = vocabulary
+    .map(word => word.source)
+    .filter((value, index, self) => 
+      value !== undefined && self.indexOf(value) === index
+    ) as string[];
+  
+  return sources;
 };
 
 // Clear all vocabulary
