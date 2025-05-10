@@ -60,6 +60,9 @@ const AdminPanel = () => {
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("vocabulary");
 
+  // Reference to store AlertDialog close functions
+  const [dialogRef, setDialogRef] = useState<{ close: () => void } | null>(null);
+
   useEffect(() => {
     // Check admin status from localStorage
     const adminStatus = localStorage.getItem("isAdmin") === "true";
@@ -213,6 +216,11 @@ const AdminPanel = () => {
     
     const difficultyLabels = ["Unknown", "Easy", "Medium", "Hard"];
     
+    // Close the dialog using our ref (if available)
+    if (dialogRef) {
+      dialogRef.close();
+    }
+    
     toast({
       title: "Difficulty Updated",
       description: `Updated ${updatedCount} words from "${source}" to "${difficultyLabels[difficulty] || 'Unknown'}" difficulty.`,
@@ -288,6 +296,10 @@ const AdminPanel = () => {
   // Handle tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+  };
+
+  const setDialogCloseRef = (closeFunction: () => void) => {
+    setDialogRef({ close: closeFunction });
   };
 
   if (!isAdmin) {
@@ -443,62 +455,58 @@ const AdminPanel = () => {
                                 </Button>
                                 
                                 <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline"
-                                      className="flex items-center gap-1"
-                                    >
-                                      <Settings className="h-4 w-4" />
-                                      Set Difficulty
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Update Difficulty</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Set difficulty level for all {sourceWords.length} words imported from "{source}".
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <div className="py-4 space-y-3">
-                                      <p className="text-sm font-medium">Choose difficulty level:</p>
-                                      <div className="flex flex-col gap-2 mt-2">
+                                  {(api) => (
+                                    <>
+                                      <AlertDialogTrigger asChild>
                                         <Button 
+                                          size="sm" 
                                           variant="outline"
-                                          className="justify-start"
-                                          onClick={() => {
-                                            handleUpdateDifficultyBySource(source, 1);
-                                            document.querySelector('[data-radix-collection-item]')?.click(); // Close dialog
-                                          }}
+                                          className="flex items-center gap-1"
+                                          onClick={() => setDialogCloseRef(api.close)}
                                         >
-                                          Easy (1)
+                                          <Settings className="h-4 w-4" />
+                                          Set Difficulty
                                         </Button>
-                                        <Button 
-                                          variant="outline"
-                                          className="justify-start"
-                                          onClick={() => {
-                                            handleUpdateDifficultyBySource(source, 2);
-                                            document.querySelector('[data-radix-collection-item]')?.click(); // Close dialog
-                                          }}
-                                        >
-                                          Medium (2)
-                                        </Button>
-                                        <Button 
-                                          variant="outline"
-                                          className="justify-start"
-                                          onClick={() => {
-                                            handleUpdateDifficultyBySource(source, 3);
-                                            document.querySelector('[data-radix-collection-item]')?.click(); // Close dialog
-                                          }}
-                                        >
-                                          Hard (3)
-                                        </Button>
-                                      </div>
-                                    </div>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Update Difficulty</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Set difficulty level for all {sourceWords.length} words imported from "{source}".
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <div className="py-4 space-y-3">
+                                          <p className="text-sm font-medium">Choose difficulty level:</p>
+                                          <div className="flex flex-col gap-2 mt-2">
+                                            <Button 
+                                              variant="outline"
+                                              className="justify-start"
+                                              onClick={() => handleUpdateDifficultyBySource(source, 1)}
+                                            >
+                                              Easy (1)
+                                            </Button>
+                                            <Button 
+                                              variant="outline"
+                                              className="justify-start"
+                                              onClick={() => handleUpdateDifficultyBySource(source, 2)}
+                                            >
+                                              Medium (2)
+                                            </Button>
+                                            <Button 
+                                              variant="outline"
+                                              className="justify-start"
+                                              onClick={() => handleUpdateDifficultyBySource(source, 3)}
+                                            >
+                                              Hard (3)
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </>
+                                  )}
                                 </AlertDialog>
                                 
                                 <AlertDialog>
