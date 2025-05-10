@@ -1,12 +1,16 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { extractVocabularyFromText, ParsedWord } from "@/utils/textParser";
-import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
-import { Check, X, Info, FileText } from "lucide-react";
+import { 
+  addMultipleVocabularyWords, 
+  getExistingWordByGerman,
+  updateDifficultyBySource
+} from "@/utils/vocabularyService";
+import { Check, X, Info, FileText, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
@@ -21,9 +25,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface TextUploaderProps {
-  onWordsExtracted?: (words: Array<{ german: string; english: string }>, source?: string) => void;
+  onWordsExtracted?: (words: Array<{ german: string; english: string; difficulty?: number }>, source?: string) => void;
 }
 
 // Language options for source and target
@@ -63,6 +78,10 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   
   // Word selection
   const [selectedWords, setSelectedWords] = useState<Record<string, boolean>>({});
+  
+  // For updating all words from a source
+  const [showUpdateDifficultyDialog, setShowUpdateDifficultyDialog] = useState(false);
+  const [newBatchDifficulty, setNewBatchDifficulty] = useState<number>(1);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -102,21 +121,35 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
     try {
       // Pass the selected languages to the extraction function
       const words = await extractVocabularyFromText(file, sourceLanguage, targetLanguage);
-      setExtractedWords(words);
       
-      // Pre-select all words by default
+      // Check for existing words in database
+      const wordsWithExistenceCheck = words.map(word => {
+        const existingWord = getExistingWordByGerman(word.german);
+        return {
+          ...word,
+          exists: existingWord !== null,
+          existingDifficulty: existingWord?.difficulty
+        };
+      });
+      
+      setExtractedWords(wordsWithExistenceCheck);
+      
+      // Pre-select all non-duplicate words by default
       const initialSelection: Record<string, boolean> = {};
-      words.forEach((word, index) => {
-        initialSelection[index.toString()] = true;
+      wordsWithExistenceCheck.forEach((word, index) => {
+        initialSelection[index.toString()] = !word.exists;
       });
       setSelectedWords(initialSelection);
       
       setImportStatus("extracted");
       setUploadProgress(100);
       
+      // Calculate duplicate count
+      const duplicateCount = wordsWithExistenceCheck.filter(word => word.exists).length;
+      
       toast({
         title: "Words Extracted",
-        description: `Successfully extracted ${words.length} words from the text file.`,
+        description: `Successfully extracted ${words.length} words from the text file${duplicateCount > 0 ? ` (${duplicateCount} already exist)` : ''}.`,
       });
     } catch (err) {
       setError("Failed to extract vocabulary from the text file. Please check the file format.");
@@ -158,14 +191,14 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
 
     try {
       // Pass the file source and the selected difficulty to track where words came from
-      addMultipleVocabularyWords(selectedWordsToImport, fileSource);
+      const result = addMultipleVocabularyWords(selectedWordsToImport, fileSource);
       setImportStatus("imported");
       
       toast({
         title: "Import Successful",
-        description: `${selectedWordsToImport.length} words have been added to your vocabulary from "${fileSource}" with ${
+        description: `${result.added} words have been added to your vocabulary from "${fileSource}" with ${
           selectedDifficulty === 1 ? "Easy" : selectedDifficulty === 2 ? "Medium" : "Hard"
-        } difficulty.`,
+        } difficulty. ${result.skipped} duplicates were skipped.`,
       });
       
       if (onWordsExtracted) {
@@ -189,14 +222,52 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
 
   const handleSelectAll = (selected: boolean) => {
     const newSelection: Record<string, boolean> = {};
-    extractedWords.forEach((_, index) => {
-      newSelection[index.toString()] = selected;
+    extractedWords.forEach((word, index) => {
+      // Only select non-duplicate words if selecting all
+      if (selected && word.exists) {
+        newSelection[index.toString()] = false;
+      } else {
+        newSelection[index.toString()] = selected;
+      }
     });
     setSelectedWords(newSelection);
   };
 
+  const handleSelectNonDuplicates = () => {
+    const newSelection: Record<string, boolean> = {};
+    extractedWords.forEach((word, index) => {
+      newSelection[index.toString()] = !word.exists;
+    });
+    setSelectedWords(newSelection);
+  };
+
+  const handleUpdateSourceDifficulty = () => {
+    if (!fileSource) return;
+    
+    const updatedCount = updateDifficultyBySource(fileSource, newBatchDifficulty);
+    
+    setShowUpdateDifficultyDialog(false);
+    
+    if (updatedCount > 0) {
+      toast({
+        title: "Difficulty Updated",
+        description: `Updated difficulty to ${
+          newBatchDifficulty === 1 ? "Easy" : 
+          newBatchDifficulty === 2 ? "Medium" : "Hard"
+        } for ${updatedCount} words from "${fileSource}".`,
+      });
+    } else {
+      toast({
+        title: "No Words Updated",
+        description: `No words from "${fileSource}" were found to update.`,
+      });
+    }
+  };
+
   // Count selected words
   const selectedCount = Object.values(selectedWords).filter(Boolean).length;
+  const duplicateCount = extractedWords.filter(word => word.exists).length;
+  const nonDuplicateCount = extractedWords.length - duplicateCount;
 
   return (
     <Card className="w-full">
@@ -333,10 +404,18 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
         {importStatus === "extracted" && (
           <div className="border rounded-md p-4 mt-4">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-medium">
-                Extracted {extractedWords.length} words from "{fileSource}":
-              </h3>
-              <div className="flex items-center gap-4">
+              <div>
+                <h3 className="font-medium">
+                  Extracted {extractedWords.length} words from "{fileSource}":
+                </h3>
+                {duplicateCount > 0 && (
+                  <div className="flex items-center gap-1 text-amber-500 text-sm mt-1">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>{duplicateCount} duplicate{duplicateCount !== 1 ? 's' : ''} found</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
                 <Button 
                   variant="outline"
                   size="sm"
@@ -351,13 +430,22 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
                 >
                   <X className="w-4 h-4 mr-1" /> Deselect All
                 </Button>
+                {duplicateCount > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectNonDuplicates}
+                  >
+                    <Check className="w-4 h-4 mr-1" /> Select Non-Duplicates ({nonDuplicateCount})
+                  </Button>
+                )}
               </div>
             </div>
             <p className="text-sm text-muted-foreground mb-3">
               {selectedCount} of {extractedWords.length} words selected for import
             </p>
             
-            {/* Added difficulty selector */}
+            {/* Difficulty selector */}
             <div className="mb-4 border-b pb-4">
               <div className="flex items-center gap-2 mb-2">
                 <label className="font-medium">Select difficulty for all imported words:</label>
@@ -391,6 +479,52 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
               </Select>
             </div>
             
+            {importStatus === "imported" && (
+              <div className="mb-4 border p-4 rounded-md bg-muted/50">
+                <h4 className="font-medium mb-2">Update Words from "{fileSource}"</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  You can update the difficulty for all words imported from this file.
+                </p>
+                <AlertDialog open={showUpdateDifficultyDialog} onOpenChange={setShowUpdateDifficultyDialog}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline">Update All Words' Difficulty</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Update difficulty for all words from "{fileSource}"</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will change the difficulty level for all words that were imported from this file.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-4">
+                      <label className="block text-sm font-medium mb-2">New Difficulty:</label>
+                      <Select 
+                        value={newBatchDifficulty.toString()} 
+                        onValueChange={(value) => setNewBatchDifficulty(parseInt(value))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select new difficulty" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {difficultyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value.toString()}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleUpdateSourceDifficulty}>
+                        Update Difficulty
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+            
             <ScrollArea className="h-96 rounded border p-2">
               <div className="w-full">
                 <table className="w-full text-sm">
@@ -411,19 +545,42 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
                         targetLanguage === "es" ? "Spanish" :
                         targetLanguage === "it" ? "Italian" : "Target"}
                       </th>
+                      <th className="text-left py-2 px-1 w-20">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {extractedWords.map((word, index) => (
-                      <tr key={index} className="border-b border-gray-100 hover:bg-muted/50">
+                      <tr key={index} className={`border-b border-gray-100 hover:bg-muted/50 ${word.exists ? 'bg-amber-50' : ''}`}>
                         <td className="py-1 px-1">
                           <Checkbox
                             checked={selectedWords[index.toString()] === true}
                             onCheckedChange={() => toggleWordSelection(index.toString())}
+                            disabled={word.exists}
                           />
                         </td>
                         <td className="py-1 px-1">{word.german}</td>
                         <td className="py-1 px-1">{word.english}</td>
+                        <td className="py-1 px-1">
+                          {word.exists ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger className="flex items-center gap-1 text-amber-500">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  <span>Exists</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Already exists as {
+                                    word.existingDifficulty === 1 ? "Easy" :
+                                    word.existingDifficulty === 2 ? "Medium" :
+                                    word.existingDifficulty === 3 ? "Hard" : "Unknown"
+                                  } difficulty</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <span className="text-green-500">New</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

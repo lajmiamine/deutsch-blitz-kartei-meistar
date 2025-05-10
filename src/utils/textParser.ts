@@ -2,6 +2,8 @@
 export interface ParsedWord {
   german: string;
   english: string;
+  exists?: boolean;  // Flag to indicate if word already exists in database
+  existingDifficulty?: number;  // If exists, what's the current difficulty
 }
 
 // Text parser utility to extract vocabulary words from text files

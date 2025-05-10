@@ -1,4 +1,3 @@
-
 export interface VocabularyWord {
   id: string;
   german: string;
@@ -83,6 +82,15 @@ export const germanWordExists = (germanWord: string): boolean => {
   return vocabulary.some(word => word.german.toLowerCase() === germanWord.toLowerCase());
 };
 
+// Get existing word by German term
+export const getExistingWordByGerman = (germanWord: string): VocabularyWord | null => {
+  const vocabulary = getVocabulary();
+  const existingWord = vocabulary.find(word => 
+    word.german.toLowerCase() === germanWord.toLowerCase()
+  );
+  return existingWord || null;
+};
+
 // Add a new vocabulary word
 export const addVocabularyWord = (german: string, english: string, approved: boolean = false, source?: string, difficulty: number = 1): boolean => {
   // Check if the German word already exists
@@ -116,6 +124,23 @@ export const updateWordApproval = (id: string, approved: boolean): void => {
     return word;
   });
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+};
+
+// Update difficulty for all words from a specific source
+export const updateDifficultyBySource = (source: string, newDifficulty: number): number => {
+  const vocabulary = getVocabulary();
+  let updatedCount = 0;
+  
+  const updatedVocabulary = vocabulary.map(word => {
+    if (word.source === source) {
+      updatedCount++;
+      return { ...word, difficulty: newDifficulty };
+    }
+    return word;
+  });
+  
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+  return updatedCount;
 };
 
 // Update a vocabulary word's difficulty
@@ -291,6 +316,21 @@ export const getAllSources = (): string[] => {
     ) as string[];
   
   return sources;
+};
+
+// Get word count per difficulty for a specific source
+export const getWordCountByDifficulty = (source?: string): { easy: number, medium: number, hard: number } => {
+  let words = getApprovedVocabulary();
+  
+  if (source) {
+    words = words.filter(word => word.source === source);
+  }
+  
+  return {
+    easy: words.filter(word => word.difficulty === 1).length,
+    medium: words.filter(word => word.difficulty === 2).length,
+    hard: words.filter(word => word.difficulty === 3).length
+  };
 };
 
 // Clear all vocabulary
