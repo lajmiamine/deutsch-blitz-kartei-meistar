@@ -357,6 +357,7 @@ const FlashcardGame = () => {
     return (score / totalAttempts) * 100;
   };
 
+  // Fixed toggle direction function
   const toggleDirection = () => {
     setDirection(prev => 
       prev === "german-to-english" ? "english-to-german" : "german-to-english"
@@ -565,16 +566,14 @@ const FlashcardGame = () => {
                 </Tabs>
                 
                 <div className="mt-6 space-y-4">
-                  <div className="flex flex-col items-center gap-4">
+                  <div className="flex items-center justify-center">
                     <div className="flex items-center justify-center gap-2 p-2 border rounded-md w-max">
                       <span className={`px-3 py-1 rounded-md ${direction === "german-to-english" ? "bg-german-gold text-black" : "bg-gray-100"}`}>
                         German → English
                       </span>
                       <Switch 
                         checked={direction === "english-to-german"}
-                        onCheckedChange={() => setDirection(prev => 
-                          prev === "german-to-english" ? "english-to-german" : "english-to-german"
-                        )}
+                        onCheckedChange={toggleDirection}
                       />
                       <span className={`px-3 py-1 rounded-md ${direction === "english-to-german" ? "bg-german-gold text-black" : "bg-gray-100"}`}>
                         English → German
@@ -587,14 +586,17 @@ const FlashcardGame = () => {
                       <label className="text-sm font-medium mb-1 block">Number of Words</label>
                       <div className="flex flex-col space-y-3">
                         <Select 
-                          value={typeof wordCount === "number" ? wordCount.toString() : wordCount} 
+                          value={typeof wordCount === "number" ? wordCount.toString() : wordCount === "all" ? "all" : "custom"} 
                           onValueChange={(value) => {
                             if (value === "all") {
                               setWordCount("all");
                             } else if (value === "custom") {
-                              // Do nothing, keep the current wordCount but show custom input
+                              // Just mark as custom but keep the current value for the input
+                              setWordCount("custom");
                             } else {
                               setWordCount(parseInt(value));
+                              // Clear custom word count when selecting a predefined option
+                              setCustomWordCount("");
                             }
                           }}
                         >
@@ -611,21 +613,23 @@ const FlashcardGame = () => {
                           </SelectContent>
                         </Select>
                         
-                        <div className="flex justify-center">
-                          <Input
-                            type="number"
-                            placeholder="Enter custom word count"
-                            className="w-[180px]"
-                            value={customWordCount}
-                            onChange={handleCustomWordCountChange}
-                            min={1}
-                          />
-                        </div>
+                        {/* Only show the custom input when custom is selected */}
+                        {wordCount === "custom" && (
+                          <div className="flex justify-center">
+                            <Input
+                              type="number"
+                              placeholder="Enter custom word count"
+                              className="w-[180px]"
+                              value={customWordCount}
+                              onChange={handleCustomWordCountChange}
+                              min={1}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                     
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">Word Selection</label>
+                    <div className="flex justify-center">
                       <Button 
                         onClick={() => setIsSelectingWords(true)}
                         className="flex items-center gap-2"
