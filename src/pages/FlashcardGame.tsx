@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +58,9 @@ const FlashcardGame = () => {
   const [answeredCount, setAnsweredCount] = useState<number>(0);
   const [gameSessionWords, setGameSessionWords] = useState<VocabularyWord[]>([]);
   const [masteredWords, setMasteredWords] = useState<string[]>([]);
+  
+  // Track unmastered words to focus on
+  const [unmasteredWords, setUnmasteredWords] = useState<VocabularyWord[]>([]);
   
   // Game state
   const [gameActive, setGameActive] = useState<boolean>(false);
@@ -149,6 +151,10 @@ const FlashcardGame = () => {
     filtered.sort(() => Math.random() - 0.5);
     
     setFilteredWords(filtered);
+    
+    // Initialize unmastered words array
+    setUnmasteredWords(filtered.filter(word => !word.mastered));
+    
     setCurrentWordIndex(0);
     
     if (filtered.length === 0) {
@@ -222,6 +228,9 @@ const FlashcardGame = () => {
     if (word && word.mastered && !wasAlreadyMastered) {
       // Word just became mastered in this session
       setMasteredWords(prev => [...prev, cardId]);
+      
+      // Update unmastered words list
+      setUnmasteredWords(prev => prev.filter(w => w.id !== cardId));
     }
     
     if (wasCorrect) {
@@ -238,24 +247,45 @@ const FlashcardGame = () => {
       duration: 1500,
     });
 
-    // Check if all words have been answered
-    if (answeredCount + 1 === filteredWords.length) {
+    // Check if all words have been mastered
+    if (unmasteredWords.length <= 1) {
+      // The current word was the last unmastered one
+      endGame();
+      return;
+    }
+    
+    // Skip to the next unmastered word
+    handleNextUnmasteredCard();
+  };
+
+  const handleNextUnmasteredCard = () => {
+    // If there are no more unmastered words, end the game
+    if (unmasteredWords.length <= 1) {
+      endGame();
+      return;
+    }
+    
+    // Find a random unmastered word that's not the current one
+    const currentWordId = unmasteredWords[currentWordIndex]?.id;
+    const otherUnmasteredWords = unmasteredWords.filter(word => word.id !== currentWordId);
+    
+    if (otherUnmasteredWords.length > 0) {
+      // Pick a random unmastered word
+      const randomIndex = Math.floor(Math.random() * otherUnmasteredWords.length);
+      const nextUnmasteredWord = otherUnmasteredWords[randomIndex];
+      
+      // Find its index in the unmastered array
+      const newIndex = unmasteredWords.findIndex(w => w.id === nextUnmasteredWord.id);
+      setCurrentWordIndex(newIndex);
+    } else {
+      // If somehow we don't have other unmastered words, end game
       endGame();
     }
   };
 
   const handleNextCard = () => {
-    if (currentWordIndex < filteredWords.length - 1) {
-      setCurrentWordIndex(prevIndex => prevIndex + 1);
-    } else {
-      // Reset to beginning if at the end
-      setCurrentWordIndex(0);
-      toast({
-        title: "Starting Over",
-        description: "You've gone through all the cards. Starting from the beginning.",
-        duration: 2000,
-      });
-    }
+    // Use the new function to get the next unmastered card
+    handleNextUnmasteredCard();
   };
   
   const handleResetGame = () => {
@@ -264,6 +294,11 @@ const FlashcardGame = () => {
     setIncorrectAnswers([]);
     setAnsweredCount(0);
     setMasteredWords([]);
+    
+    // Reset unmastered words to include all words
+    setUnmasteredWords([...filteredWords].filter(word => !word.mastered));
+    
+    // Reset current index
     setCurrentWordIndex(0);
     
     // Reshuffle the words
@@ -309,17 +344,43 @@ const FlashcardGame = () => {
     setCorrectAnswers([]);
     setIncorrectAnswers([]);
     setAnsweredCount(0);
-    setMasteredWords([]);
-    setCurrentWordIndex(0);
+    
+    // Initialize mastered words based on their current state
+    const alreadyMasteredWords = filteredWords
+      .filter(word => word.mastered)
+      .map(word => word.id);
+    setMasteredWords(alreadyMasteredWords);
+    
+    // Set unmastered words
+    const notMastered = filteredWords.filter(word => !word.mastered);
+    setUnmasteredWords(notMastered);
+    
+    // If there are unmastered words, set the current index to the first one
+    // Otherwise, keep the current index (game will end immediately)
+    if (notMastered.length > 0) {
+      // Find index of first unmastered word in filtered words array
+      const firstUnmasteredIndex = filteredWords.findIndex(word => !word.mastered);
+      setCurrentWordIndex(firstUnmasteredIndex >= 0 ? firstUnmasteredIndex : 0);
+    }
     
     // Save the filtered words for this game session
     setGameSessionWords([...filteredWords]);
     
     toast({
       title: "Game Started",
-      description: `Good luck with your ${filteredWords.length} flashcards!`,
+      description: `Focus on mastering ${notMastered.length} remaining words!`,
       duration: 2000,
     });
+    
+    // If all words are already mastered, end game immediately
+    if (notMastered.length === 0) {
+      toast({
+        title: "All Words Mastered",
+        description: "Congratulations! You've already mastered all words in this selection.",
+        duration: 2000,
+      });
+      endGame();
+    }
   };
   
   // End game function
