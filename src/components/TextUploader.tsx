@@ -62,6 +62,7 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [extractedWords, setExtractedWords] = useState<ParsedWord[]>([]);
+  // Fix type definition to ensure string literal types can be compared
   const [importStatus, setImportStatus] = useState<"idle" | "processing" | "extracted" | "imported">("idle");
   
   // File source tracking
