@@ -7,8 +7,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
-import { XCircle, Upload } from "lucide-react";
+import { XCircle, Upload, Info } from "lucide-react";
 import { extractVocabularyFromText } from "@/utils/textParser";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { getExistingWordByGerman } from "@/utils/vocabularyService";
 
 interface TextUploaderProps {
   onFileImported?: () => void;
@@ -25,6 +34,8 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   const [importStatus, setImportStatus] = useState<ImportStatus>("none");
   const [isProcessing, setIsProcessing] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<number>(1);
+  const [duplicateCount, setDuplicateCount] = useState<number>(0);
   
   const extractVocabulary = useCallback(() => {
     if (!text.trim() && !file) {
@@ -43,14 +54,29 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       // Process file using the existing extractVocabularyFromText function
       extractVocabularyFromText(file, 'de', 'en')
         .then(parsedWords => {
-          setExtractedWords(parsedWords);
+          // Apply the selected difficulty to all words
+          const wordsWithDifficulty = parsedWords.map(word => ({
+            ...word,
+            difficulty: selectedDifficulty
+          }));
+          
+          // Check for duplicates
+          let duplicates = 0;
+          wordsWithDifficulty.forEach(word => {
+            if (getExistingWordByGerman(word.german)) {
+              duplicates++;
+            }
+          });
+          setDuplicateCount(duplicates);
+          
+          setExtractedWords(wordsWithDifficulty);
           setImportStatus("extracted");
           
           // Call the onWordsExtracted prop if provided
-          if (onWordsExtracted && parsedWords.length > 0) {
+          if (onWordsExtracted && wordsWithDifficulty.length > 0) {
             // Use filename without extension as source
             const source = file.name.replace(/\.[^/.]+$/, "");
-            onWordsExtracted(parsedWords, source);
+            onWordsExtracted(wordsWithDifficulty, source);
           }
         })
         .catch(error => {
@@ -68,15 +94,25 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       // Basic regex to split lines and extract words
       const lines = text.split('\n').filter(line => line.trim() !== '');
       const newWords: Array<{ german: string; english: string; difficulty?: number }> = [];
+      let duplicates = 0;
       
       lines.forEach(line => {
         const parts = line.split('-').map(part => part.trim());
         if (parts.length === 2) {
           const [german, english] = parts;
-          newWords.push({ german, english });
+          // Check if this is a duplicate
+          if (getExistingWordByGerman(german)) {
+            duplicates++;
+          }
+          newWords.push({ 
+            german, 
+            english, 
+            difficulty: selectedDifficulty 
+          });
         }
       });
       
+      setDuplicateCount(duplicates);
       setExtractedWords(newWords);
       setImportStatus("extracted");
       setIsProcessing(false);
@@ -86,7 +122,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
         onWordsExtracted(newWords, "Text Input");
       }
     }
-  }, [text, toast, onWordsExtracted, file]);
+  }, [text, toast, onWordsExtracted, file, selectedDifficulty]);
   
   const handleImport = async () => {
     if (extractedWords.length === 0) {
@@ -130,6 +166,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setExtractedWords([]);
     setImportStatus("none");
     setFile(null);
+    setDuplicateCount(0);
   };
   
   const handleRemoveWord = (index: number) => {
@@ -144,6 +181,23 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       setFile(selectedFile);
     }
   };
+
+  const handleDifficultyChange = (value: string) => {
+    const difficulty = parseInt(value, 10);
+    setSelectedDifficulty(difficulty);
+    
+    // Update difficulty for all extracted words
+    if (extractedWords.length > 0) {
+      const updatedWords = extractedWords.map(word => ({
+        ...word,
+        difficulty
+      }));
+      setExtractedWords(updatedWords);
+    }
+  };
+
+  // Get the number of words that will be imported (total - duplicates)
+  const wordsToImport = extractedWords.length - duplicateCount;
 
   return (
     <Card className="w-full">
@@ -199,23 +253,78 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
           )}
         </div>
         
+        <div className="grid gap-2">
+          <Label htmlFor="difficulty">Difficulty Level</Label>
+          <Select 
+            value={selectedDifficulty.toString()} 
+            onValueChange={handleDifficultyChange}
+          >
+            <SelectTrigger 
+              id="difficulty" 
+              className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            >
+              <SelectValue placeholder="Select difficulty" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Easy (1)</SelectItem>
+              <SelectItem value="2">Medium (2)</SelectItem>
+              <SelectItem value="3">Hard (3)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
         {extractedWords.length > 0 && (
           <div className="grid gap-2">
-            <Label>Extracted Words</Label>
-            <ul className="list-none pl-0">
-              {extractedWords.map((word, index) => (
-                <li key={index} className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                  <span>{word.german} - {word.english}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                    onClick={() => handleRemoveWord(index)}
+            <div className="flex justify-between items-center mb-2">
+              <Label className="text-base font-medium">Extracted Words</Label>
+              <div className="flex gap-2">
+                <Badge variant="outline" className="text-xs">
+                  Total: {extractedWords.length}
+                </Badge>
+                {duplicateCount > 0 && (
+                  <Badge variant="destructive" className="text-xs">
+                    Duplicates: {duplicateCount}
+                  </Badge>
+                )}
+                <Badge variant="secondary" className="text-xs">
+                  To import: {wordsToImport}
+                </Badge>
+              </div>
+            </div>
+            <ul className="list-none pl-0 border rounded-md divide-y max-h-60 overflow-y-auto">
+              {extractedWords.map((word, index) => {
+                const isExisting = getExistingWordByGerman(word.german);
+                return (
+                  <li 
+                    key={index} 
+                    className={`flex items-center justify-between py-2 px-3 ${
+                      isExisting ? 'bg-red-50 dark:bg-red-900/20' : ''
+                    }`}
                   >
-                    <XCircle className="h-4 w-4" />
-                  </Button>
-                </li>
-              ))}
+                    <div className="flex items-center gap-2">
+                      {isExisting && (
+                        <Info className="h-4 w-4 text-red-500" />
+                      )}
+                      <span className={isExisting ? 'text-red-500' : ''}>
+                        {word.german} - {word.english}
+                      </span>
+                      {isExisting && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          Duplicate
+                        </Badge>
+                      )}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      onClick={() => handleRemoveWord(index)}
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
@@ -233,15 +342,15 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
         {importStatus === "extracted" ? (
           <Button 
             onClick={handleImport} 
-            disabled={isProcessing}
+            disabled={isProcessing || wordsToImport === 0}
             className="dark:bg-primary dark:text-primary-foreground"
           >
-            {isProcessing ? "Importing..." : "Import Vocabulary"}
+            {isProcessing ? "Importing..." : `Import ${wordsToImport} Words`}
           </Button>
         ) : (
           <Button 
             onClick={extractVocabulary} 
-            disabled={isProcessing}
+            disabled={isProcessing || (!text.trim() && !file)}
             className="dark:bg-primary dark:text-primary-foreground"
           >
             {isProcessing ? "Extracting..." : "Extract Vocabulary"}
