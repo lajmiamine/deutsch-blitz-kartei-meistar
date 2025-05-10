@@ -322,6 +322,7 @@ const FlashcardGame = () => {
     });
   };
   
+  // Reset game progress completely
   const resetGameProgress = () => {
     // Reset all progress tracking
     setCorrectAnswers([]);
@@ -393,11 +394,17 @@ const FlashcardGame = () => {
     }
   };
   
-  // End game function
+  // End game function with progress reset
   const endGame = () => {
     setGameActive(false);
     setShowResults(true);
     setGameEndTime(Date.now());
+    
+    // Reset word mastery progress in localStorage when game ends
+    resetWordMasteryProgress();
+    
+    // Reload the words to get fresh state from localStorage
+    loadWords();
     
     // Keep game session words for stats
   };
@@ -712,7 +719,11 @@ const FlashcardGame = () => {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowResults(false)}
+                onClick={() => {
+                  setShowResults(false);
+                  // Reload the words to get fresh state after reset
+                  loadWords();
+                }}
                 className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 Select Words
