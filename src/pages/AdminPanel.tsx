@@ -21,7 +21,8 @@ import {
   getVocabularyBySource,
   getApprovedVocabularyBySource,
   deleteWordsBySource,
-  updateDifficultyBySource
+  updateDifficultyBySource,
+  updateSourceName
 } from "@/utils/vocabularyService";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
@@ -47,8 +48,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { FileText, Trash, Settings } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { FileText, Trash, Settings, Edit } from "lucide-react";
 
 const AdminPanel = () => {
   const { toast } = useToast();
@@ -62,9 +63,11 @@ const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("vocabulary");
   const [currentSourceForDifficulty, setCurrentSourceForDifficulty] = useState<string | null>(null);
   const [isDifficultyDialogOpen, setIsDifficultyDialogOpen] = useState(false);
-
-  // Reference to store AlertDialog close functions
-  const [dialogRef, setDialogRef] = useState<{ close: () => void } | null>(null);
+  
+  // For source rename functionality
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [currentSourceToRename, setCurrentSourceToRename] = useState<string | null>(null);
+  const [newSourceName, setNewSourceName] = useState("");
 
   useEffect(() => {
     // Check admin status from localStorage
@@ -300,6 +303,57 @@ const AdminPanel = () => {
     setSelectedSource(source);
   };
 
+  // Open rename dialog
+  const handleOpenRenameDialog = (source: string) => {
+    setCurrentSourceToRename(source);
+    setNewSourceName(source); // Pre-fill with current source name
+    setIsRenameDialogOpen(true);
+  };
+
+  // Update source name
+  const handleUpdateSourceName = () => {
+    if (!currentSourceToRename || !newSourceName.trim()) {
+      toast({
+        title: "Error",
+        description: "Source name cannot be empty.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    const result = updateSourceName(currentSourceToRename, newSourceName.trim());
+    
+    if (result === -1) {
+      toast({
+        title: "Error",
+        description: `A source with the name "${newSourceName.trim()}" already exists.`,
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    // Update local data
+    setFileSources(getAllSources());
+    setVocabulary(getVocabulary());
+    
+    // If the renamed source was the selected one, update the selection
+    if (selectedSource === currentSourceToRename) {
+      setSelectedSource(newSourceName.trim());
+    }
+    
+    toast({
+      title: "Source Renamed",
+      description: `Renamed "${currentSourceToRename}" to "${newSourceName.trim()}"`,
+      duration: 3000,
+    });
+    
+    // Close the dialog
+    setIsRenameDialogOpen(false);
+    setCurrentSourceToRename(null);
+  };
+
   // Handle tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -471,6 +525,16 @@ const AdminPanel = () => {
                                   Set Difficulty
                                 </Button>
                                 
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="flex items-center gap-1"
+                                  onClick={() => handleOpenRenameDialog(source)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  Rename
+                                </Button>
+                                
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button 
@@ -593,6 +657,36 @@ const AdminPanel = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog for renaming sources */}
+      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Source</DialogTitle>
+            <DialogDescription>
+              {currentSourceToRename && (
+                <>Enter a new name for the source "{currentSourceToRename}".</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={newSourceName}
+              onChange={(e) => setNewSourceName(e.target.value)}
+              placeholder="New source name"
+              className="w-full"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRenameDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateSourceName}>
+              Save Changes
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

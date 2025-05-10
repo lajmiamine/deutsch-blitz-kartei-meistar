@@ -416,3 +416,26 @@ export const getNonMasteredVocabularyByDifficulty = (difficulty: number): Vocabu
   const vocabulary = getApprovedVocabulary();
   return vocabulary.filter(word => word.difficulty === difficulty && !word.mastered);
 };
+
+// Update the source name for all words from a specific source
+export const updateSourceName = (oldSource: string, newSource: string): number => {
+  const vocabulary = getVocabulary();
+  let updatedCount = 0;
+  
+  // Check if the new source name already exists
+  const existingSources = getAllSources();
+  if (existingSources.includes(newSource) && oldSource !== newSource) {
+    return -1; // Return -1 to indicate the source name already exists
+  }
+  
+  const updatedVocabulary = vocabulary.map(word => {
+    if (word.source === oldSource) {
+      updatedCount++;
+      return { ...word, source: newSource };
+    }
+    return word;
+  });
+  
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+  return updatedCount;
+};
