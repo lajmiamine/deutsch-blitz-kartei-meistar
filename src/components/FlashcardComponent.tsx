@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { VocabularyWord } from "@/utils/vocabularyService";
-import { RefreshCcw } from "lucide-react";
 
 interface FlashcardComponentProps {
   word: VocabularyWord;

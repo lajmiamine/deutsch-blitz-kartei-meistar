@@ -6,7 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { RefreshCcw, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CheckCircle, X, Random } from "lucide-react";
 import FlashcardComponent from "@/components/FlashcardComponent";
 import Navbar from "@/components/Navbar";
 import { 
@@ -17,9 +18,11 @@ import {
 } from "@/utils/vocabularyService";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const FlashcardGame = () => {
   const { toast } = useToast();
+  const [allWords, setAllWords] = useState<VocabularyWord[]>([]);
   const [words, setWords] = useState<VocabularyWord[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -36,6 +39,15 @@ const FlashcardGame = () => {
   
   // New state for tracking if a word had mistakes
   const [wordMistakes, setWordMistakes] = useState<Record<string, boolean>>({});
+  
+  // New state for word count and selection mode
+  const [wordCount, setWordCount] = useState<number>(10);
+  const [selectionMode, setSelectionMode] = useState<"random" | "select">("random");
+  const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
+  const [isSelectingWords, setIsSelectingWords] = useState(false);
+  
+  // Available word count options
+  const wordCountOptions = [5, 10, 15, 20, 30, 50, "all"];
 
   // Load words based on selected difficulty
   const loadWords = useCallback(() => {
@@ -65,10 +77,12 @@ const FlashcardGame = () => {
       });
     }
     
-    // Shuffle the words
+    // Store all words for selection mode
+    setAllWords([...vocabularyWords]);
+    
+    // Shuffle the words in both cases
     const shuffled = [...vocabularyWords].sort(() => Math.random() - 0.5);
-    setWords(shuffled);
-    setCurrentWordIndex(0);
+    
     // Reset wrong words and correct counts
     setWrongWords([]);
     setWordCorrectCounts({});
@@ -80,6 +94,51 @@ const FlashcardGame = () => {
   useEffect(() => {
     loadWords();
   }, [loadWords]);
+  
+  // Prepare words for practice based on selection mode and word count
+  const prepareWordsForPractice = () => {
+    let practiceWords: VocabularyWord[] = [];
+    
+    if (selectionMode === "random") {
+      // Get randomly selected words based on word count
+      const shuffled = [...allWords].sort(() => Math.random() - 0.5);
+      
+      if (wordCount === "all") {
+        practiceWords = shuffled;
+      } else {
+        // If we have fewer words than requested, use all available words
+        const count = Math.min(Number(wordCount), shuffled.length);
+        practiceWords = shuffled.slice(0, count);
+      }
+    } else {
+      // Get specifically selected words
+      if (selectedWordIds.length === 0) {
+        toast({
+          title: "No words selected",
+          description: "Please select at least one word to practice.",
+          duration: 3000,
+        });
+        return false;
+      }
+      
+      practiceWords = allWords
+        .filter(word => selectedWordIds.includes(word.id))
+        .sort(() => Math.random() - 0.5); // Always shuffle
+    }
+    
+    if (practiceWords.length === 0) {
+      toast({
+        title: "No words available",
+        description: "Please select different settings or add more vocabulary.",
+        duration: 3000,
+      });
+      return false;
+    }
+    
+    setWords(practiceWords);
+    setCurrentWordIndex(0);
+    return true;
+  };
 
   // Check if we've completed all words 
   // (all words have been answered correctly 2 times, or 3 times if there were mistakes)
@@ -102,16 +161,21 @@ const FlashcardGame = () => {
   }, [wordCorrectCounts, words, wordMistakes, gameStarted, score, totalAttempts, toast]);
 
   const startGame = () => {
-    loadWords();
+    // First prepare the words based on selection settings
+    if (!prepareWordsForPractice()) {
+      return; // Don't start if word preparation failed
+    }
+    
+    // Reset game state
     setScore(0);
     setStreak(0);
     setTotalAttempts(0);
-    setCurrentWordIndex(0);
     setGameStarted(true);
     setWrongWords([]);
     setWordCorrectCounts({});
     setWordMistakes({});
     setShowingWrongWords(false);
+    setIsSelectingWords(false);
   };
 
   const handleCorrectAnswer = (wordId: string) => {
@@ -290,6 +354,27 @@ const FlashcardGame = () => {
     });
   };
 
+  // Toggle word selection
+  const toggleSelectionMode = (mode: "random" | "select") => {
+    setSelectionMode(mode);
+    if (mode === "select") {
+      setIsSelectingWords(true);
+    } else {
+      setIsSelectingWords(false);
+    }
+  };
+
+  // Toggle word selection in the list
+  const toggleWordSelection = (wordId: string) => {
+    setSelectedWordIds(prev => {
+      if (prev.includes(wordId)) {
+        return prev.filter(id => id !== wordId);
+      } else {
+        return [...prev, wordId];
+      }
+    });
+  };
+
   // Count how many words have been mastered
   const masteredWordCount = words.filter(word => {
     const requiredCorrectAnswers = wordMistakes[word.id] ? 3 : 2;
@@ -304,55 +389,166 @@ const FlashcardGame = () => {
         <h1 className="text-3xl font-bold mb-8 text-center">German Flashcards</h1>
         
         {!gameStarted ? (
-          <Card className="text-center">
-            <CardHeader>
-              <CardTitle>Ready to Practice German?</CardTitle>
-              <CardDescription>Select difficulty and start the game to improve your vocabulary</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="all" className="w-[400px] mx-auto">
-                <TabsList className="grid grid-cols-4 mb-4">
-                  <TabsTrigger value="all" onClick={() => setDifficulty("all")}>All</TabsTrigger>
-                  <TabsTrigger value="easy" onClick={() => setDifficulty("easy")}>Easy</TabsTrigger>
-                  <TabsTrigger value="medium" onClick={() => setDifficulty("medium")}>Medium</TabsTrigger>
-                  <TabsTrigger value="hard" onClick={() => setDifficulty("hard")}>Hard</TabsTrigger>
-                </TabsList>
+          isSelectingWords ? (
+            <Card className="text-center">
+              <CardHeader>
+                <CardTitle>Select Words to Practice</CardTitle>
+                <CardDescription>Choose specific words you want to practice</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between mb-4">
+                  <span>{selectedWordIds.length} words selected</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setIsSelectingWords(false)}
+                  >
+                    Back to Settings
+                  </Button>
+                </div>
                 
-                <TabsContent value="all" className="text-center py-4">
-                  Practice with all available vocabulary words
-                </TabsContent>
-                <TabsContent value="easy" className="text-center py-4">
-                  Practice with easier words that you've mastered
-                </TabsContent>
-                <TabsContent value="medium" className="text-center py-4">
-                  Practice with words of moderate difficulty
-                </TabsContent>
-                <TabsContent value="hard" className="text-center py-4">
-                  Challenge yourself with the most difficult words
-                </TabsContent>
-              </Tabs>
-              
-              <div className="mt-6 flex items-center justify-center gap-2">
-                <span className="text-sm text-muted-foreground">German → English</span>
-                <Switch 
-                  checked={direction === "english-to-german"}
-                  onCheckedChange={() => setDirection(prev => 
-                    prev === "german-to-english" ? "english-to-german" : "german-to-english"
-                  )}
-                />
-                <span className="text-sm text-muted-foreground">English → German</span>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-center">
-              <Button 
-                size="lg" 
-                className="bg-german-gold text-black hover:bg-yellow-500"
-                onClick={startGame}
-              >
-                Start Game
-              </Button>
-            </CardFooter>
-          </Card>
+                <ScrollArea className="h-[400px] border rounded-md p-4">
+                  <div className="space-y-2">
+                    {allWords.map(word => (
+                      <div 
+                        key={word.id} 
+                        className="flex items-center p-2 border rounded-md hover:bg-gray-100"
+                      >
+                        <Checkbox 
+                          id={`word-${word.id}`}
+                          checked={selectedWordIds.includes(word.id)}
+                          onCheckedChange={() => toggleWordSelection(word.id)}
+                          className="mr-3"
+                        />
+                        <div className="flex-1">
+                          <label 
+                            htmlFor={`word-${word.id}`}
+                            className="flex justify-between cursor-pointer w-full"
+                          >
+                            <span className="font-medium">{word.german}</span>
+                            <span className="text-muted-foreground">{word.english}</span>
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+              <CardFooter className="justify-between">
+                <Button variant="outline" onClick={() => setIsSelectingWords(false)}>Cancel</Button>
+                <Button 
+                  onClick={startGame}
+                  disabled={selectedWordIds.length === 0}
+                  className="bg-german-gold text-black hover:bg-yellow-500"
+                >
+                  Start with {selectedWordIds.length} Words
+                </Button>
+              </CardFooter>
+            </Card>
+          ) : (
+            <Card className="text-center">
+              <CardHeader>
+                <CardTitle>Ready to Practice German?</CardTitle>
+                <CardDescription>Select your options and start the game to improve your vocabulary</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="all" className="w-[400px] mx-auto">
+                  <TabsList className="grid grid-cols-4 mb-4">
+                    <TabsTrigger value="all" onClick={() => setDifficulty("all")}>All</TabsTrigger>
+                    <TabsTrigger value="easy" onClick={() => setDifficulty("easy")}>Easy</TabsTrigger>
+                    <TabsTrigger value="medium" onClick={() => setDifficulty("medium")}>Medium</TabsTrigger>
+                    <TabsTrigger value="hard" onClick={() => setDifficulty("hard")}>Hard</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="all" className="text-center py-4">
+                    Practice with all available vocabulary words
+                  </TabsContent>
+                  <TabsContent value="easy" className="text-center py-4">
+                    Practice with easier words that you've mastered
+                  </TabsContent>
+                  <TabsContent value="medium" className="text-center py-4">
+                    Practice with words of moderate difficulty
+                  </TabsContent>
+                  <TabsContent value="hard" className="text-center py-4">
+                    Challenge yourself with the most difficult words
+                  </TabsContent>
+                </Tabs>
+                
+                <div className="mt-6 space-y-4">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-sm text-muted-foreground">German → English</span>
+                    <Switch 
+                      checked={direction === "english-to-german"}
+                      onCheckedChange={() => setDirection(prev => 
+                        prev === "german-to-english" ? "english-to-german" : "german-to-english"
+                      )}
+                    />
+                    <span className="text-sm text-muted-foreground">English → German</span>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Number of Words</label>
+                      <Select 
+                        value={wordCount.toString()} 
+                        onValueChange={(value) => setWordCount(value === "all" ? "all" : parseInt(value))}
+                      >
+                        <SelectTrigger className="w-[180px] mx-auto">
+                          <SelectValue placeholder="Select word count" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {wordCountOptions.map((count) => (
+                            <SelectItem key={count} value={count.toString()}>
+                              {count === "all" ? "All Words" : `${count} Words`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Selection Mode</label>
+                      <div className="flex justify-center gap-4">
+                        <Button 
+                          variant={selectionMode === "random" ? "default" : "outline"}
+                          onClick={() => toggleSelectionMode("random")}
+                          className="flex items-center gap-2"
+                        >
+                          <Random className="h-4 w-4" /> Random Words
+                        </Button>
+                        <Button 
+                          variant={selectionMode === "select" ? "default" : "outline"}
+                          onClick={() => toggleSelectionMode("select")}
+                          className="flex items-center gap-2"
+                        >
+                          <CheckCircle className="h-4 w-4" /> Select Words
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-center">
+                {selectionMode === "select" ? (
+                  <Button 
+                    size="lg" 
+                    className="bg-german-gold text-black hover:bg-yellow-500"
+                    onClick={() => setIsSelectingWords(true)}
+                  >
+                    Select Words
+                  </Button>
+                ) : (
+                  <Button 
+                    size="lg" 
+                    className="bg-german-gold text-black hover:bg-yellow-500"
+                    onClick={startGame}
+                  >
+                    Start Game
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          )
         ) : (
           <div className="space-y-8">
             <Card>
@@ -387,8 +583,8 @@ const FlashcardGame = () => {
                 <div className="flex justify-center flex-wrap gap-2 mb-4">
                   <Badge variant="outline" className="bg-german-black text-white">
                     {difficulty === "all" ? "All Levels" : 
-                     difficulty === "easy" ? "Easy" : 
-                     difficulty === "medium" ? "Medium" : "Hard"}
+                    difficulty === "easy" ? "Easy" : 
+                    difficulty === "medium" ? "Medium" : "Hard"}
                   </Badge>
                   <Badge variant="outline" className="bg-german-gold text-black">
                     {direction === "german-to-english" ? "German → English" : "English → German"}
@@ -398,6 +594,9 @@ const FlashcardGame = () => {
                       {wrongWords.length} Wrong Words
                     </Badge>
                   )}
+                  <Badge variant="outline" className="bg-blue-500 text-white">
+                    {words.length} Words
+                  </Badge>
                 </div>
                 
                 <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -419,14 +618,7 @@ const FlashcardGame = () => {
                     size="sm" 
                     onClick={resetGame}
                   >
-                    <RefreshCcw className="mr-1 h-4 w-4" /> Reset Game
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    size="sm" 
-                    onClick={shuffleWords}
-                  >
-                    <RefreshCcw className="mr-1 h-4 w-4" /> Shuffle Words
+                    Reset Game
                   </Button>
                 </div>
               </CardContent>
@@ -456,7 +648,7 @@ const FlashcardGame = () => {
                             <p className="text-sm text-muted-foreground">{word.english}</p>
                           </div>
                           <Badge className="bg-amber-500">
-                            {(wordCorrectCounts[word.id] || 0)}/2 Correct
+                            {(wordCorrectCounts[word.id] || 0)}/3 Correct
                           </Badge>
                         </div>
                       ))}
