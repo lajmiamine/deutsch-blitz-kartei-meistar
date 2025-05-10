@@ -482,12 +482,12 @@ const AdminPanel = () => {
                             onOpenChange={setIsSourcesOpen}
                             className="border rounded-md"
                           >
-                            <div className="flex items-center justify-between p-4">
-                              <div>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3">
+                              <div className="flex-shrink-0 max-w-full">
                                 <CollapsibleTrigger asChild>
-                                  <Button variant="ghost" className="p-0 hover:bg-transparent">
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    <span className="font-medium">
+                                  <Button variant="ghost" className="p-0 hover:bg-transparent text-left justify-start break-all">
+                                    <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
+                                    <span className="font-medium truncate">
                                       {source === "all-words" ? "All words" : source}
                                     </span>
                                   </Button>
@@ -497,11 +497,12 @@ const AdminPanel = () => {
                                 </div>
                               </div>
                               
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
                                 <Button 
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleViewSourceWords(source)}
+                                  className="flex-shrink-0"
                                 >
                                   View Words
                                 </Button>
@@ -509,6 +510,7 @@ const AdminPanel = () => {
                                 <Button 
                                   size="sm" 
                                   onClick={() => handleCreateSourceFlashcards(source)}
+                                  className="flex-shrink-0"
                                 >
                                   Create Flashcards
                                 </Button>
@@ -516,21 +518,21 @@ const AdminPanel = () => {
                                 <Button 
                                   size="sm" 
                                   variant="outline"
-                                  className="flex items-center gap-1"
+                                  className="flex items-center gap-1 flex-shrink-0"
                                   onClick={() => handleOpenDifficultyDialog(source)}
                                 >
                                   <Settings className="h-4 w-4" />
-                                  Set Difficulty
+                                  <span className="hidden sm:inline">Set Difficulty</span>
                                 </Button>
                                 
                                 <Button 
                                   size="sm" 
                                   variant="outline"
-                                  className="flex items-center gap-1"
+                                  className="flex items-center gap-1 flex-shrink-0"
                                   onClick={() => handleOpenRenameDialog(source)}
                                 >
                                   <Edit className="h-4 w-4" />
-                                  Rename
+                                  <span className="hidden sm:inline">Rename</span>
                                 </Button>
                                 
                                 <AlertDialog>
@@ -538,9 +540,10 @@ const AdminPanel = () => {
                                     <Button 
                                       size="sm" 
                                       variant="destructive"
+                                      className="flex-shrink-0"
                                     >
                                       <Trash className="h-4 w-4 mr-1" />
-                                      Delete All
+                                      <span className="hidden sm:inline">Delete All</span>
                                     </Button>
                                   </AlertDialogTrigger>
                                   <AlertDialogContent>
