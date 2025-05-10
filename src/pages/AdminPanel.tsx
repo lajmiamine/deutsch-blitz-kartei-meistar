@@ -47,6 +47,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText, Trash, Settings } from "lucide-react";
 
 const AdminPanel = () => {
@@ -59,6 +60,8 @@ const AdminPanel = () => {
   const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("vocabulary");
+  const [currentSourceForDifficulty, setCurrentSourceForDifficulty] = useState<string | null>(null);
+  const [isDifficultyDialogOpen, setIsDifficultyDialogOpen] = useState(false);
 
   // Reference to store AlertDialog close functions
   const [dialogRef, setDialogRef] = useState<{ close: () => void } | null>(null);
@@ -216,10 +219,8 @@ const AdminPanel = () => {
     
     const difficultyLabels = ["Unknown", "Easy", "Medium", "Hard"];
     
-    // Close the dialog using our ref (if available)
-    if (dialogRef) {
-      dialogRef.close();
-    }
+    // Close the dialog
+    setIsDifficultyDialogOpen(false);
     
     toast({
       title: "Difficulty Updated",
@@ -258,6 +259,12 @@ const AdminPanel = () => {
   // Clear source filter
   const handleClearSourceFilter = () => {
     setSelectedSource(undefined);
+  };
+
+  // Open difficulty dialog
+  const handleOpenDifficultyDialog = (source: string) => {
+    setCurrentSourceForDifficulty(source);
+    setIsDifficultyDialogOpen(true);
   };
 
   // Create flashcards from a specific source
@@ -454,60 +461,15 @@ const AdminPanel = () => {
                                   Create Flashcards
                                 </Button>
                                 
-                                <AlertDialog>
-                                  {(api) => (
-                                    <>
-                                      <AlertDialogTrigger asChild>
-                                        <Button 
-                                          size="sm" 
-                                          variant="outline"
-                                          className="flex items-center gap-1"
-                                          onClick={() => setDialogCloseRef(api.close)}
-                                        >
-                                          <Settings className="h-4 w-4" />
-                                          Set Difficulty
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Update Difficulty</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Set difficulty level for all {sourceWords.length} words imported from "{source}".
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <div className="py-4 space-y-3">
-                                          <p className="text-sm font-medium">Choose difficulty level:</p>
-                                          <div className="flex flex-col gap-2 mt-2">
-                                            <Button 
-                                              variant="outline"
-                                              className="justify-start"
-                                              onClick={() => handleUpdateDifficultyBySource(source, 1)}
-                                            >
-                                              Easy (1)
-                                            </Button>
-                                            <Button 
-                                              variant="outline"
-                                              className="justify-start"
-                                              onClick={() => handleUpdateDifficultyBySource(source, 2)}
-                                            >
-                                              Medium (2)
-                                            </Button>
-                                            <Button 
-                                              variant="outline"
-                                              className="justify-start"
-                                              onClick={() => handleUpdateDifficultyBySource(source, 3)}
-                                            >
-                                              Hard (3)
-                                            </Button>
-                                          </div>
-                                        </div>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </>
-                                  )}
-                                </AlertDialog>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="flex items-center gap-1"
+                                  onClick={() => handleOpenDifficultyDialog(source)}
+                                >
+                                  <Settings className="h-4 w-4" />
+                                  Set Difficulty
+                                </Button>
                                 
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
@@ -593,6 +555,46 @@ const AdminPanel = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Dialog for setting difficulty levels */}
+      <Dialog open={isDifficultyDialogOpen} onOpenChange={setIsDifficultyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Difficulty</DialogTitle>
+            <DialogDescription>
+              {currentSourceForDifficulty && (
+                <>Set difficulty level for all words imported from "{currentSourceForDifficulty}".</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <p className="text-sm font-medium">Choose difficulty level:</p>
+            <div className="flex flex-col gap-2 mt-2">
+              <Button 
+                variant="outline"
+                className="justify-start"
+                onClick={() => currentSourceForDifficulty && handleUpdateDifficultyBySource(currentSourceForDifficulty, 1)}
+              >
+                Easy (1)
+              </Button>
+              <Button 
+                variant="outline"
+                className="justify-start"
+                onClick={() => currentSourceForDifficulty && handleUpdateDifficultyBySource(currentSourceForDifficulty, 2)}
+              >
+                Medium (2)
+              </Button>
+              <Button 
+                variant="outline"
+                className="justify-start"
+                onClick={() => currentSourceForDifficulty && handleUpdateDifficultyBySource(currentSourceForDifficulty, 3)}
+              >
+                Hard (3)
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
