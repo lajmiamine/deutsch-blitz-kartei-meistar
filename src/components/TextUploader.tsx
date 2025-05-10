@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +57,7 @@ const difficultyOptions = [
 ];
 
 // Define the import status type to ensure string literal types can be properly compared
-type ImportStatus = "extracted" | "imported" | "ready" | "none";
+type ImportStatus = "extracted" | "imported" | "ready" | "none" | "processing";
 
 const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const { toast } = useToast();
