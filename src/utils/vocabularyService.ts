@@ -78,14 +78,14 @@ export const getPaginatedVocabulary = (
 };
 
 // Add a new vocabulary word
-export const addVocabularyWord = (german: string, english: string, approved: boolean = false, source?: string): void => {
+export const addVocabularyWord = (german: string, english: string, approved: boolean = false, source?: string, difficulty: number = 1): void => {
   const vocabulary = getVocabulary();
   const newWord: VocabularyWord = {
     id: Date.now().toString(),
     german,
     english,
     approved,
-    difficulty: 1,
+    difficulty,
     timesCorrect: 0,
     timesIncorrect: 0,
     source
@@ -149,7 +149,7 @@ export const deleteWordsBySource = (source: string): number => {
 };
 
 // Add multiple vocabulary words (e.g., from text import)
-export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string }>, source?: string): void => {
+export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string; difficulty?: number }>, source?: string): void => {
   const vocabulary = getVocabulary();
   
   // Create a map of existing german-english pairs to prevent duplicates
@@ -169,8 +169,8 @@ export const addMultipleVocabularyWords = (words: Array<{ german: string; englis
     id: Date.now() + Math.random().toString(36).substring(2, 8),
     german: word.german,
     english: word.english,
-    approved: true, // Changed to true - automatically approve imported words
-    difficulty: 1,
+    approved: true, // Automatically approve imported words
+    difficulty: word.difficulty || 1, // Use provided difficulty or default to 1 (Easy)
     timesCorrect: 0,
     timesIncorrect: 0,
     source: source || undefined

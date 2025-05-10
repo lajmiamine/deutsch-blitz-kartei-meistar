@@ -35,6 +35,12 @@ const languages = [
   { value: "it", label: "Italian" }
 ];
 
+const difficultyOptions = [
+  { value: 1, label: "Easy" },
+  { value: 2, label: "Medium" },
+  { value: 3, label: "Hard" }
+];
+
 const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
@@ -51,6 +57,9 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const [sourceLanguage, setSourceLanguage] = useState<string>("de");
   const [targetLanguage, setTargetLanguage] = useState<string>("en");
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
+  
+  // Difficulty selection
+  const [selectedDifficulty, setSelectedDifficulty] = useState<number>(1);
   
   // Word selection
   const [selectedWords, setSelectedWords] = useState<Record<string, boolean>>({});
@@ -133,7 +142,10 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
     // Filter only selected words
     const selectedWordsToImport = extractedWords.filter((_, index) => 
       selectedWords[index.toString()] === true
-    );
+    ).map(word => ({
+      ...word,
+      difficulty: selectedDifficulty
+    }));
 
     if (selectedWordsToImport.length === 0) {
       toast({
@@ -145,13 +157,15 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
     }
 
     try {
-      // Pass the file source to track where words came from
+      // Pass the file source and the selected difficulty to track where words came from
       addMultipleVocabularyWords(selectedWordsToImport, fileSource);
       setImportStatus("imported");
       
       toast({
         title: "Import Successful",
-        description: `${selectedWordsToImport.length} words have been added to your vocabulary from "${fileSource}".`,
+        description: `${selectedWordsToImport.length} words have been added to your vocabulary from "${fileSource}" with ${
+          selectedDifficulty === 1 ? "Easy" : selectedDifficulty === 2 ? "Medium" : "Hard"
+        } difficulty.`,
       });
       
       if (onWordsExtracted) {
@@ -343,6 +357,40 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
               {selectedCount} of {extractedWords.length} words selected for import
             </p>
             
+            {/* Added difficulty selector */}
+            <div className="mb-4 border-b pb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <label className="font-medium">Select difficulty for all imported words:</label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <Info className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>This difficulty will be applied to all selected words.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Select
+                value={selectedDifficulty.toString()}
+                onValueChange={(value) => setSelectedDifficulty(parseInt(value))}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  {difficultyOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value.toString()}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <ScrollArea className="h-96 rounded border p-2">
               <div className="w-full">
                 <table className="w-full text-sm">
@@ -393,7 +441,10 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
         >
           {importStatus === "imported"
             ? "Words Imported Successfully"
-            : `Import ${selectedCount} Selected Words from "${fileSource}"`}
+            : `Import ${selectedCount} ${
+                selectedDifficulty === 1 ? "Easy" : 
+                selectedDifficulty === 2 ? "Medium" : "Hard"
+              } Words from "${fileSource}"`}
         </Button>
       </CardFooter>
     </Card>

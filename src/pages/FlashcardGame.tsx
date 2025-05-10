@@ -57,10 +57,18 @@ const FlashcardGame = () => {
   // State for showing word progress
   const [showWordProgress, setShowWordProgress] = useState(false);
   
-  // Available word count options - updated as requested
+  // Store counts of words by difficulty for UI display
+  const [wordCountsByDifficulty, setWordCountsByDifficulty] = useState({
+    all: 0,
+    easy: 0,
+    medium: 0,
+    hard: 0
+  });
+  
+  // Available word count options
   const wordCountOptions = [10, 20, 50, 100, "all"];
 
-  // Load words based on selected difficulty and source
+  // Load words and count by difficulty
   const loadWords = useCallback(() => {
     let vocabularyWords: VocabularyWord[] = [];
     
@@ -107,6 +115,29 @@ const FlashcardGame = () => {
     setShowingWrongWords(false);
   }, [difficulty, selectedSource, toast]);
 
+  // Count words by difficulty level
+  const countWordsByDifficulty = useCallback(() => {
+    const allVocabulary = getApprovedVocabulary();
+    let sourceFilteredVocabulary = allVocabulary;
+    
+    // Apply source filter if selected
+    if (selectedSource) {
+      sourceFilteredVocabulary = getApprovedVocabularyBySource(selectedSource);
+    }
+    
+    // Count words by difficulty
+    const easyWords = sourceFilteredVocabulary.filter(word => word.difficulty === 1).length;
+    const mediumWords = sourceFilteredVocabulary.filter(word => word.difficulty === 2).length;
+    const hardWords = sourceFilteredVocabulary.filter(word => word.difficulty === 3).length;
+    
+    setWordCountsByDifficulty({
+      all: sourceFilteredVocabulary.length,
+      easy: easyWords,
+      medium: mediumWords,
+      hard: hardWords
+    });
+  }, [selectedSource]);
+
   // Initialize game and load sources
   useEffect(() => {
     // Load available sources
@@ -122,12 +153,14 @@ const FlashcardGame = () => {
     }
     
     loadWords();
-  }, [loadWords]);
+    countWordsByDifficulty();
+  }, [loadWords, countWordsByDifficulty]);
   
   // Reload words when source or difficulty changes
   useEffect(() => {
     loadWords();
-  }, [selectedSource, difficulty, loadWords]);
+    countWordsByDifficulty();
+  }, [selectedSource, difficulty, loadWords, countWordsByDifficulty]);
 
   // Prepare words for practice based on selection mode and word count
   const prepareWordsForPractice = () => {
@@ -389,10 +422,18 @@ const FlashcardGame = () => {
     return (wordCorrectCounts[word.id] || 0) >= requiredCorrectAnswers;
   }).length;
 
+  // Function to handle difficulty change
+  const handleDifficultyChange = (newDifficulty: "all" | "easy" | "medium" | "hard") => {
+    setDifficulty(newDifficulty);
+    setGameStarted(false); // Reset game state when changing difficulty
+  };
+
   // Function to handle source change
   const handleSourceChange = (source: string | undefined) => {
     setSelectedSource(source);
     setGameStarted(false); // Reset game state when changing source
+    // Recalculate difficulty counts with the new source
+    setTimeout(countWordsByDifficulty, 0);
   };
 
   // End the current game session
@@ -543,25 +584,33 @@ const FlashcardGame = () => {
                   )}
                 </div>
                 
-                <Tabs defaultValue="all" className="w-[400px] mx-auto">
+                <Tabs defaultValue={difficulty} className="w-[400px] mx-auto">
                   <TabsList className="grid grid-cols-4 mb-4">
-                    <TabsTrigger value="all" onClick={() => setDifficulty("all")}>All</TabsTrigger>
-                    <TabsTrigger value="easy" onClick={() => setDifficulty("easy")}>Easy</TabsTrigger>
-                    <TabsTrigger value="medium" onClick={() => setDifficulty("medium")}>Medium</TabsTrigger>
-                    <TabsTrigger value="hard" onClick={() => setDifficulty("hard")}>Hard</TabsTrigger>
+                    <TabsTrigger value="all" onClick={() => handleDifficultyChange("all")}>
+                      All ({wordCountsByDifficulty.all})
+                    </TabsTrigger>
+                    <TabsTrigger value="easy" onClick={() => handleDifficultyChange("easy")}>
+                      Easy ({wordCountsByDifficulty.easy})
+                    </TabsTrigger>
+                    <TabsTrigger value="medium" onClick={() => handleDifficultyChange("medium")}>
+                      Medium ({wordCountsByDifficulty.medium})
+                    </TabsTrigger>
+                    <TabsTrigger value="hard" onClick={() => handleDifficultyChange("hard")}>
+                      Hard ({wordCountsByDifficulty.hard})
+                    </TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="all" className="text-center py-4">
-                    Select the difficulty level for your practice session
+                    Practice with {wordCountsByDifficulty.all} words from all difficulty levels
                   </TabsContent>
                   <TabsContent value="easy" className="text-center py-4">
-                    Practice with easier words that you've mastered
+                    Practice with {wordCountsByDifficulty.easy} easier words that you've mastered
                   </TabsContent>
                   <TabsContent value="medium" className="text-center py-4">
-                    Practice with words of moderate difficulty
+                    Practice with {wordCountsByDifficulty.medium} words of moderate difficulty
                   </TabsContent>
                   <TabsContent value="hard" className="text-center py-4">
-                    Challenge yourself with the most difficult words
+                    Challenge yourself with {wordCountsByDifficulty.hard} difficult words
                   </TabsContent>
                 </Tabs>
                 
@@ -612,7 +661,6 @@ const FlashcardGame = () => {
                           </SelectContent>
                         </Select>
                         
-                        {/* Only show the custom input when custom is selected */}
                         {wordCount === "custom" && (
                           <div className="flex justify-center">
                             <Input
@@ -644,6 +692,12 @@ const FlashcardGame = () => {
                   size="lg" 
                   className="bg-german-gold text-black hover:bg-yellow-500"
                   onClick={startGame}
+                  disabled={
+                    (difficulty === "easy" && wordCountsByDifficulty.easy === 0) ||
+                    (difficulty === "medium" && wordCountsByDifficulty.medium === 0) ||
+                    (difficulty === "hard" && wordCountsByDifficulty.hard === 0) ||
+                    (wordCountsByDifficulty.all === 0)
+                  }
                 >
                   Start Game
                 </Button>
