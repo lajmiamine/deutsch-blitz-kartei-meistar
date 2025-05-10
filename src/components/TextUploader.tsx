@@ -194,6 +194,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setImportStatus("none");
     setFile(null);
     setSelectedWordsCount(0);
+    setDuplicateCount(0);
   };
   
   const handleClear = () => {
@@ -203,6 +204,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setFile(null);
     setDuplicateCount(0);
     setSelectedWordsCount(0);
+    setSelectedDifficulty(1);
   };
   
   const handleRemoveWord = (index: number) => {
@@ -282,6 +284,12 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   const handleToggleWordSelection = (index: number) => {
     const updatedWords = [...extractedWords];
     const currentWord = updatedWords[index];
+    
+    // Skip if it's a duplicate word - duplicates should not be selectable
+    if (currentWord.isDuplicate) {
+      return;
+    }
+    
     const newSelectedState = !currentWord.isSelected;
     
     updatedWords[index] = {
@@ -298,23 +306,37 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   };
   
   const handleSelectAll = () => {
-    const allSelected = extractedWords.every(word => word.isSelected);
+    // Count how many non-duplicate words we have
+    const nonDuplicateWords = extractedWords.filter(word => !word.isDuplicate);
     
-    // Toggle selection - if all are selected, unselect all; otherwise select all
-    const updatedWords = extractedWords.map(word => ({
-      ...word,
-      isSelected: !allSelected
-    }));
+    // Check if all non-duplicate words are already selected
+    const allNonDuplicatesSelected = nonDuplicateWords.every(word => word.isSelected);
+    
+    // Toggle selection for non-duplicate words only
+    const updatedWords = extractedWords.map(word => {
+      if (word.isDuplicate) {
+        return word; // Keep duplicate words as is (unselected)
+      }
+      return {
+        ...word,
+        isSelected: !allNonDuplicatesSelected
+      };
+    });
     
     setExtractedWords(updatedWords);
-    setSelectedWordsCount(allSelected ? 0 : extractedWords.length);
+    setSelectedWordsCount(allNonDuplicatesSelected ? 0 : nonDuplicateWords.length);
   };
   
   const handleSelectAllNonDuplicates = () => {
-    const updatedWords = extractedWords.map(word => ({
-      ...word,
-      isSelected: !word.isDuplicate
-    }));
+    const updatedWords = extractedWords.map(word => {
+      if (word.isDuplicate) {
+        return word; // Keep duplicate words as is (unselected)
+      }
+      return {
+        ...word,
+        isSelected: true
+      };
+    });
     
     setExtractedWords(updatedWords);
     setSelectedWordsCount(extractedWords.filter(word => !word.isDuplicate).length);
@@ -325,12 +347,15 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       <CardHeader>
         <CardTitle>Import Vocabulary from Text</CardTitle>
         <CardDescription>
-          Paste text or upload a file with German words and their English translations.
+          {file 
+            ? "Vocabulary will be extracted from your file."
+            : "Paste text or upload a file with German words and their English translations."
+          }
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="fileUpload">Upload File (Optional)</Label>
+          <Label htmlFor="fileUpload">Upload File</Label>
           <div className="flex items-center gap-2">
             <Input
               id="fileUpload"
@@ -357,22 +382,18 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
           )}
         </div>
         
-        <div className="grid gap-2">
-          <Label htmlFor="vocabulary">Or Paste Vocabulary Text</Label>
-          <Textarea
-            id="vocabulary"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="German - English"
-            className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            disabled={!!file}
-          />
-          {file && (
-            <p className="text-sm text-muted-foreground">
-              Text input is disabled when a file is selected.
-            </p>
-          )}
-        </div>
+        {!file && (
+          <div className="grid gap-2">
+            <Label htmlFor="vocabulary">Or Paste Vocabulary Text</Label>
+            <Textarea
+              id="vocabulary"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="German - English"
+              className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            />
+          </div>
+        )}
         
         <div className="grid gap-2">
           <Label htmlFor="difficulty">Difficulty Level</Label>
@@ -419,7 +440,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
                 variant="outline"
                 onClick={handleSelectAll}
               >
-                {extractedWords.every(word => word.isSelected) 
+                {extractedWords.filter(w => !w.isDuplicate).every(w => w.isSelected) 
                   ? "Deselect All" 
                   : "Select All"}
               </Button>
@@ -446,7 +467,8 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
                         id={`select-word-${index}`}
                         checked={word.isSelected}
                         onCheckedChange={() => handleToggleWordSelection(index)}
-                        className="h-4 w-4"
+                        disabled={word.isDuplicate}
+                        className={`h-4 w-4 ${word.isDuplicate ? 'opacity-50 cursor-not-allowed' : ''}`}
                       />
                     </div>
                     <div className="flex-grow flex items-center gap-2 ml-2">
