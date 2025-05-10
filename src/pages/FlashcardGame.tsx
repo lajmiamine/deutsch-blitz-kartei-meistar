@@ -259,55 +259,29 @@ const FlashcardGame = () => {
       duration: 1500,
     });
 
-    // Check if all words have been mastered
-    if (unmasteredWords.length <= 1) {
-      // This was the last word and it was just mastered
-      if (updatedWord && updatedWord.mastered) {
-        // Don't end game yet - just show completion message
-        // User needs to manually end when they're ready
-        return;
-      } else {
-        // The current word was the last unmastered one but not yet mastered
-        handleNextUnmasteredCard();
-      }
-      return;
-    }
-    
-    // Skip to the next unmastered word
-    handleNextUnmasteredCard();
+    // Simply call selectNextUnmasteredWord to continue the game
+    // No need for additional checks that could end the game prematurely
+    selectNextUnmasteredWord();
   };
 
-  const handleNextUnmasteredCard = () => {
-    console.log("handleNextUnmasteredCard called, unmastered words:", unmasteredWords.length);
+  // Renamed function for clarity and updated implementation
+  const selectNextUnmasteredWord = () => {
+    console.log("Selecting next unmastered word, remaining:", unmasteredWords.length);
     
-    // If there are no more unmastered words, show completion message
+    // If there are no more unmastered words, show completion message but don't end game
     if (unmasteredWords.length === 0) {
-      // Don't end game automatically - let user see completion message
-      // and decide when to end
+      console.log("No more unmastered words left");
       return;
     }
     
-    // Find a random unmastered word that's not the current one
-    const currentWordId = unmasteredWords[currentWordIndex]?.id;
-    const otherUnmasteredWords = unmasteredWords.filter(word => word.id !== currentWordId);
-    
-    if (otherUnmasteredWords.length > 0) {
-      // Pick a random unmastered word
-      const randomIndex = Math.floor(Math.random() * otherUnmasteredWords.length);
-      const nextUnmasteredWord = otherUnmasteredWords[randomIndex];
-      
-      // Find its index in the unmastered array
-      const newIndex = unmasteredWords.findIndex(w => w.id === nextUnmasteredWord.id);
-      setCurrentWordIndex(newIndex);
-    } else if (unmasteredWords.length === 1) {
-      // If only one unmastered word remains, keep showing it
-      setCurrentWordIndex(0);
-    }
+    // Pick a random unmastered word for better learning outcomes
+    const randomIndex = Math.floor(Math.random() * unmasteredWords.length);
+    setCurrentWordIndex(randomIndex);
+    console.log(`Selected unmastered word index ${randomIndex}`);
   };
 
   const handleNextCard = () => {
-    // Use the new function to get the next unmastered card
-    handleNextUnmasteredCard();
+    selectNextUnmasteredWord();
   };
   
   const handleResetGame = () => {
@@ -387,12 +361,13 @@ const FlashcardGame = () => {
     setUnmasteredWords(notMastered);
     console.log("Starting game with unmastered words:", notMastered.length);
     
-    // If there are unmastered words, set the current index to the first one
-    // Otherwise, keep the current index (game will end immediately)
+    // Randomize the first word to show if there are unmastered words
     if (notMastered.length > 0) {
-      // Find index of first unmastered word in filtered words array
-      const firstUnmasteredIndex = filteredWords.findIndex(word => !word.mastered);
-      setCurrentWordIndex(firstUnmasteredIndex >= 0 ? firstUnmasteredIndex : 0);
+      const randomIndex = Math.floor(Math.random() * notMastered.length);
+      setCurrentWordIndex(randomIndex);
+      console.log(`Initial unmastered word index: ${randomIndex}`);
+    } else {
+      setCurrentWordIndex(0);
     }
     
     // Save the filtered words for this game session
@@ -411,8 +386,6 @@ const FlashcardGame = () => {
         description: "Congratulations! You've already mastered all words in this selection.",
         duration: 2000,
       });
-      // Don't end game automatically - display the complete message
-      // and let the user choose to end the game
     }
   };
   
@@ -837,7 +810,7 @@ const FlashcardGame = () => {
         )}
         
         {/* Flashcard Component (shown during active game) */}
-        {gameActive && unmasteredWords.length > 0 && currentWordIndex < unmasteredWords.length && (
+        {gameActive && unmasteredWords.length > 0 && (
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <div>
