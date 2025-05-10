@@ -367,9 +367,9 @@ const FlashcardGame = () => {
     setSessionMasteredWords([]);
     setSessionWordStats(new Map());
     
-    // Force the WordProgressDialog to update with reset data
-    const resetWords = wordsWithSessionStatus;
-    setGameSessionWords([...resetWords]);
+    // Force the WordProgressDialog to update with reset data by setting a completely new array
+    // This ensures React detects the change and updates the component
+    setGameSessionWords([...wordsWithSessionStatus]);
   };
   
   // Reset game progress completely for the session only

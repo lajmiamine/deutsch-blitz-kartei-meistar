@@ -94,6 +94,14 @@ const WordProgressDialog = ({ words, gameSessionOnly = false }: WordProgressDial
     return Math.round((currentStreak / requirement) * 100);
   };
   
+  // Update cached words when the external words prop changes
+  // This ensures we stay in sync with game resets and other changes
+  React.useEffect(() => {
+    if (gameSessionOnly) {
+      setCachedWords(words);
+    }
+  }, [words, gameSessionOnly]);
+  
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
