@@ -1,4 +1,3 @@
-
 export interface VocabularyWord {
   id: string;
   german: string;
@@ -285,22 +284,13 @@ export const updateWordStatistics = (id: string, wasCorrect: boolean): void => {
         mastered = true;
       }
       
-      // Adjust difficulty based on correct/incorrect ratio
-      let newDifficulty = word.difficulty;
-      const totalAttempts = timesCorrect + timesIncorrect;
-      
-      if (totalAttempts >= 3) {
-        const correctRatio = timesCorrect / totalAttempts;
-        if (correctRatio > 0.8) newDifficulty = 1; // Easy
-        else if (correctRatio > 0.5) newDifficulty = 2; // Medium
-        else newDifficulty = 3; // Hard
-      }
+      // No longer adjusting difficulty based on mastery status
+      // The difficulty will remain as set by the user or initial value
       
       return { 
         ...word, 
         timesCorrect, 
-        timesIncorrect, 
-        difficulty: newDifficulty,
+        timesIncorrect,
         correctStreak,
         mastered
       };
