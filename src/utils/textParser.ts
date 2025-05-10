@@ -85,7 +85,8 @@ const translateWords = async (sourceWords: string[], sourceLanguage: string = 'd
   // For demonstration, we'll use a dictionary for common DE-EN translations
   
   // Mock translation - Dictionary of common translations
-  const dictionary: Record<string, Record<string, string>> = {
+  // Fix: Properly define the nested dictionary type
+  const dictionary: Record<string, Record<string, Record<string, string>>> = {
     'de': {
       'en': {
         // Common nouns
@@ -228,14 +229,14 @@ const translateWords = async (sourceWords: string[], sourceLanguage: string = 'd
           }
         } else {
           // Generic "translation" - just add a language-specific prefix
-          const prefixes = {
+          const prefixes: Record<string, string> = {
             'de': 'de-',
             'en': 'en-',
             'fr': 'fr-',
             'es': 'es-',
             'it': 'it-'
           };
-          translation = (prefixes[targetLanguage as keyof typeof prefixes] || '') + sourceWord;
+          translation = (prefixes[targetLanguage] || '') + sourceWord;
         }
       }
       
