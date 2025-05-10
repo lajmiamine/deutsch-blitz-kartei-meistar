@@ -359,10 +359,6 @@ const AdminPanel = () => {
     setActiveTab(value);
   };
 
-  const setDialogCloseRef = (closeFunction: () => void) => {
-    setDialogRef({ close: closeFunction });
-  };
-
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50">
