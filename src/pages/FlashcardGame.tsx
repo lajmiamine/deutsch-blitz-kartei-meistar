@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,8 @@ const FlashcardGame = () => {
   const [wordMistakes, setWordMistakes] = useState<Record<string, boolean>>({});
   
   // State for word count and selection mode
-  const [wordCount, setWordCount] = useState<number | "all">(10);
+  // Update the type to include "custom" as a valid value
+  const [wordCount, setWordCount] = useState<number | "all" | "custom">(10);
   const [customWordCount, setCustomWordCount] = useState<string>("");
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
   const [isSelectingWords, setIsSelectingWords] = useState(false);
@@ -422,7 +424,7 @@ const FlashcardGame = () => {
     setCustomWordCount(e.target.value);
   };
 
-  // Add the missing handleRemoveWord function
+  // Add the handleRemoveWord function
   const handleRemoveWord = (wordId: string) => {
     // Delete the word from vocabulary
     deleteVocabularyWord(wordId);
@@ -586,12 +588,11 @@ const FlashcardGame = () => {
                       <label className="text-sm font-medium mb-1 block">Number of Words</label>
                       <div className="flex flex-col space-y-3">
                         <Select 
-                          value={typeof wordCount === "number" ? wordCount.toString() : wordCount === "all" ? "all" : "custom"} 
+                          value={typeof wordCount === "number" ? wordCount.toString() : wordCount} 
                           onValueChange={(value) => {
                             if (value === "all") {
                               setWordCount("all");
                             } else if (value === "custom") {
-                              // Just mark as custom but keep the current value for the input
                               setWordCount("custom");
                             } else {
                               setWordCount(parseInt(value));
