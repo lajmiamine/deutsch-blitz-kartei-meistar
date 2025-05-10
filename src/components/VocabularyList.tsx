@@ -92,7 +92,7 @@ const VocabularyList = ({
 
   const handleSourceChange = (value: string) => {
     if (onSourceChange) {
-      onSourceChange(value === "all" ? undefined : value);
+      onSourceChange(value === "all-sources" ? undefined : value);
     }
   };
 
@@ -114,14 +114,14 @@ const VocabularyList = ({
         {sources && sources.length > 0 && (
           <div className="flex items-center space-x-2 min-w-[200px]">
             <Select 
-              value={selectedSource || "all"} 
+              value={selectedSource || "all-sources"} 
               onValueChange={handleSourceChange}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Filter by source" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Sources</SelectItem>
+                <SelectItem value="all-sources">All Sources</SelectItem>
                 {sources.map(source => (
                   <SelectItem key={source} value={source}>{source}</SelectItem>
                 ))}

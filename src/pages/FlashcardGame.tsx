@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -522,14 +523,14 @@ const FlashcardGame = () => {
                 <div className="mb-6">
                   <label className="text-sm font-medium mb-1 block">Text File Source</label>
                   <Select 
-                    value={selectedSource || ""}
-                    onValueChange={(value) => handleSourceChange(value === "" ? undefined : value)}
+                    value={selectedSource || "all-sources"}
+                    onValueChange={(value) => handleSourceChange(value === "all-sources" ? undefined : value)}
                   >
                     <SelectTrigger className="w-[250px] mx-auto">
                       <SelectValue placeholder="All sources" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All sources</SelectItem>
+                      <SelectItem value="all-sources">All sources</SelectItem>
                       {availableSources.map((source) => (
                         <SelectItem key={source} value={source}>
                           {source}
