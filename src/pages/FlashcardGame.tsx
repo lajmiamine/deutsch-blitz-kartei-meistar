@@ -306,23 +306,24 @@ const FlashcardGame = () => {
       duration: 1500,
     });
 
-    // Simply call selectNextUnmasteredWord to continue the game
+    // Call selectNextUnmasteredWord to continue the game
     selectNextUnmasteredWord();
   };
 
   const selectNextUnmasteredWord = () => {
     console.log("Selecting next unmastered word, remaining:", unmasteredWords.length);
     
-    // If there are no more unmastered words, show completion message but don't end game
+    // If there are no more unmastered words, show completion message and end game
     if (unmasteredWords.length === 0) {
       console.log("No more unmastered words left");
+      endGame();
       return;
     }
     
     // Pick a random unmastered word for better learning outcomes
     const randomIndex = Math.floor(Math.random() * unmasteredWords.length);
     setCurrentWordIndex(randomIndex);
-    console.log(`Selected unmastered word index ${randomIndex}`);
+    console.log(`Selected unmastered word index ${randomIndex} from ${unmasteredWords.length} remaining words`);
   };
 
   const handleNextCard = () => {
@@ -862,8 +863,8 @@ const FlashcardGame = () => {
               </div>
             </div>
 
-            {/* Make sure currentWordIndex is valid before rendering FlashcardComponent */}
-            {currentWordIndex >= 0 && unmasteredWords.length > 0 && currentWordIndex < unmasteredWords.length ? (
+            {/* Always validate currentWordIndex before rendering FlashcardComponent */}
+            {unmasteredWords.length > 0 && (
               <FlashcardComponent
                 word={unmasteredWords[currentWordIndex]}
                 direction={direction}
@@ -871,18 +872,6 @@ const FlashcardGame = () => {
                 onIncorrect={(wordId) => handleAnswerChecked(wordId, false)}
                 onSkip={handleNextCard}
               />
-            ) : (
-              // Fallback if currentWordIndex is invalid
-              <div className="text-center py-8">
-                <p className="text-lg font-medium dark:text-white">
-                  Loading next word...
-                </p>
-                <Button 
-                  onClick={() => selectNextUnmasteredWord()} 
-                  className="mt-4">
-                    Find Next Word
-                </Button>
-              </div>
             )}
           </div>
         )}
