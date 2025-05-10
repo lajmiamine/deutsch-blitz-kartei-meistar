@@ -8,14 +8,20 @@ import { Star, BarChart } from "lucide-react";
 
 interface WordProgressDialogProps {
   words: VocabularyWord[];
+  gameSessionOnly?: boolean;
 }
 
-const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
+const WordProgressDialog = ({ words, gameSessionOnly = false }: WordProgressDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   
-  // Get the most up-to-date word data directly from localStorage
+  // Get the most up-to-date word data directly from localStorage or from the current game session
   const getLatestWordData = () => {
-    // Retrieve the latest word data from localStorage
+    if (gameSessionOnly) {
+      // In game session mode, use the words directly passed to the component
+      return words;
+    }
+    
+    // Otherwise, retrieve the latest word data from localStorage
     const storedVocabulary = localStorage.getItem('german_vocabulary');
     if (!storedVocabulary) return words;
     
@@ -93,7 +99,9 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md dark:bg-gray-800 dark:border-gray-700">
         <DialogHeader>
-          <DialogTitle className="text-center text-xl dark:text-white">Word Progress</DialogTitle>
+          <DialogTitle className="text-center text-xl dark:text-white">
+            {gameSessionOnly ? "Game Session Progress" : "Word Progress"}
+          </DialogTitle>
         </DialogHeader>
         
         {dialogData && (

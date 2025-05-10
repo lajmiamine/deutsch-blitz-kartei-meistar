@@ -12,13 +12,10 @@ import {
   VocabularyWord, 
   getApprovedVocabulary, 
   getVocabularyByDifficulty, 
-  updateWordStatistics,
   getAllSources,
   getApprovedVocabularyBySource,
   getWordCountByDifficulty,
-  getVocabularyWithProgress,
-  getWordsByIds,
-  resetWordMasteryProgress
+  getWordsByIds
 } from "@/utils/vocabularyService";
 import { CircleCheck, X, RefreshCw, Play, Trophy, BarChart, Check } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -53,12 +50,20 @@ const FlashcardGame = () => {
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
   const [showWordSelector, setShowWordSelector] = useState<boolean>(false);
   
-  // Track session progress
+  // Track session progress - NOT persisted in localStorage
   const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
   const [incorrectAnswers, setIncorrectAnswers] = useState<string[]>([]);
   const [answeredCount, setAnsweredCount] = useState<number>(0);
   const [gameSessionWords, setGameSessionWords] = useState<VocabularyWord[]>([]);
-  const [masteredWords, setMasteredWords] = useState<string[]>([]);
+  
+  // Game-session only mastery tracking - NOT persisted in localStorage
+  const [sessionMasteredWords, setSessionMasteredWords] = useState<string[]>([]);
+  const [sessionWordStats, setSessionWordStats] = useState<Map<string, {
+    timesCorrect: number;
+    timesIncorrect: number;
+    correctStreak: number;
+    mastered: boolean;
+  }>>(new Map());
   
   // Track unmastered words to focus on
   const [unmasteredWords, setUnmasteredWords] = useState<VocabularyWord[]>([]);
@@ -147,18 +152,13 @@ const FlashcardGame = () => {
         filtered = filtered.filter(word => word.difficulty === difficultyLevel);
       }
     }
-
-    // Filter out mastered words
-    filtered = filtered.filter(word => !word.mastered);
+    
+    // Remove mastery filtering - we'll track mastery only in the session now
     
     // Shuffle the array for random order
     filtered.sort(() => Math.random() - 0.5);
     
     setFilteredWords(filtered);
-    
-    // Initialize unmastered words array
-    setUnmasteredWords(filtered);
-    
     setCurrentWordIndex(0);
     
     if (filtered.length === 0) {
@@ -168,7 +168,7 @@ const FlashcardGame = () => {
           selectedDifficulty === "1" ? "easy" : 
           selectedDifficulty === "2" ? "medium" : 
           selectedDifficulty === "3" ? "hard" : ""
-        } unmastered words available${selectedSource ? ` in "${selectedSource}"` : ""}.`,
+        } words available${selectedSource ? ` in "${selectedSource}"` : ""}.`,
         variant: "destructive",
       });
     }
@@ -218,20 +218,67 @@ const FlashcardGame = () => {
     });
   };
 
+  // Update word statistics in the session only, not in localStorage
+  const updateSessionWordStatistics = (wordId: string, wasCorrect: boolean): VocabularyWord | null => {
+    // Find the word in our filtered words list
+    const wordToUpdate = filteredWords.find(word => word.id === wordId);
+    if (!wordToUpdate) return null;
+    
+    // Get the current stats from our session state or create new ones
+    const currentStats = sessionWordStats.get(wordId) || {
+      timesCorrect: 0,
+      timesIncorrect: 0,
+      correctStreak: 0,
+      mastered: false
+    };
+    
+    // Update the stats
+    const updatedStats = {
+      timesCorrect: wasCorrect ? currentStats.timesCorrect + 1 : currentStats.timesCorrect,
+      timesIncorrect: wasCorrect ? currentStats.timesIncorrect : currentStats.timesIncorrect + 1,
+      correctStreak: wasCorrect ? currentStats.correctStreak + 1 : 0, // Reset streak on incorrect
+      mastered: currentStats.mastered // Will be updated below
+    };
+    
+    // Determine mastery status based on the streak
+    // Mastery requires 2 consecutive correct answers
+    // If they've had an incorrect answer, requires 3 consecutive correct answers
+    if (updatedStats.timesIncorrect > 0 && updatedStats.correctStreak >= 3) {
+      updatedStats.mastered = true;
+    } else if (updatedStats.timesIncorrect === 0 && updatedStats.correctStreak >= 2) {
+      updatedStats.mastered = true;
+    }
+    
+    // Save the updated stats to our session state
+    const newSessionWordStats = new Map(sessionWordStats);
+    newSessionWordStats.set(wordId, updatedStats);
+    setSessionWordStats(newSessionWordStats);
+    
+    // Create a copy of the word with updated session-only stats
+    const updatedWord: VocabularyWord = {
+      ...wordToUpdate,
+      timesCorrect: updatedStats.timesCorrect,
+      timesIncorrect: updatedStats.timesIncorrect,
+      correctStreak: updatedStats.correctStreak,
+      mastered: updatedStats.mastered
+    };
+    
+    return updatedWord;
+  };
+
   const handleAnswerChecked = (cardId: string, wasCorrect: boolean) => {
-    // Update word statistics and get the updated word
-    const updatedWord = updateWordStatistics(cardId, wasCorrect);
+    // Update session word statistics and get the updated word
+    const updatedWord = updateSessionWordStatistics(cardId, wasCorrect);
     
     // Update session progress
     setAnsweredCount(prev => prev + 1);
     
-    // Check if the word became mastered after this answer
     if (updatedWord && updatedWord.mastered) {
-      const wasAlreadyMastered = masteredWords.includes(cardId);
+      const wasAlreadyMastered = sessionMasteredWords.includes(cardId);
       
       if (!wasAlreadyMastered) {
         // Word just became mastered in this session
-        setMasteredWords(prev => [...prev, cardId]);
+        setSessionMasteredWords(prev => [...prev, cardId]);
         
         // Update unmastered words list - REMOVE THE WORD IMMEDIATELY
         setUnmasteredWords(prev => prev.filter(w => w.id !== cardId));
@@ -260,11 +307,9 @@ const FlashcardGame = () => {
     });
 
     // Simply call selectNextUnmasteredWord to continue the game
-    // No need for additional checks that could end the game prematurely
     selectNextUnmasteredWord();
   };
 
-  // Renamed function for clarity and updated implementation
   const selectNextUnmasteredWord = () => {
     console.log("Selecting next unmastered word, remaining:", unmasteredWords.length);
     
@@ -285,48 +330,56 @@ const FlashcardGame = () => {
   };
   
   const handleResetGame = () => {
-    // Reset all word mastery progress in localStorage
-    resetWordMasteryProgress();
-    
-    // Reload the words to get fresh state from localStorage
-    loadWords();
-    
-    // Reset progress but keep the same words
-    setCorrectAnswers([]);
-    setIncorrectAnswers([]);
-    setAnsweredCount(0);
-    
-    // Reset mastered words - all words are now unmastered
-    setMasteredWords([]);
-    
-    // Get the newly loaded words and update unmastered list
-    setUnmasteredWords([...filteredWords]);
-    
-    // Reset current index
-    setCurrentWordIndex(0);
-    
-    // Reshuffle the words
-    const shuffled = [...filteredWords].sort(() => Math.random() - 0.5);
-    setFilteredWords(shuffled);
+    // Reset the game session stats without affecting localStorage
+    resetSessionProgress();
     
     toast({
       title: "Game Reset",
-      description: "Your progress has been reset for all words and cards have been reshuffled.",
+      description: "Your progress has been reset for this game session.",
       duration: 2000,
     });
+    
+    // Restart the game with the same words
+    startGame();
   };
   
-  // Reset game progress completely
+  // Reset game progress completely for the session only
   const resetGameProgress = () => {
-    // Reset all progress tracking
+    // Reset all progress tracking for the session
     setCorrectAnswers([]);
     setIncorrectAnswers([]);
     setAnsweredCount(0);
-    setMasteredWords([]);
+    setSessionMasteredWords([]);
+    setSessionWordStats(new Map());
     setGameActive(false);
     setShowResults(false);
     setGameStartTime(null);
     setGameEndTime(null);
+  };
+  
+  // Reset only the session progress, not the game state
+  const resetSessionProgress = () => {
+    setCorrectAnswers([]);
+    setIncorrectAnswers([]);
+    setAnsweredCount(0);
+    setSessionMasteredWords([]);
+    setSessionWordStats(new Map());
+  };
+  
+  // Apply session mastery status to the words list
+  const applySessionMasteryStatus = (wordsList: VocabularyWord[]): VocabularyWord[] => {
+    return wordsList.map(word => {
+      const stats = sessionWordStats.get(word.id);
+      if (!stats) return word;
+      
+      return {
+        ...word,
+        timesCorrect: stats.timesCorrect,
+        timesIncorrect: stats.timesIncorrect,
+        correctStreak: stats.correctStreak,
+        mastered: stats.mastered
+      };
+    });
   };
   
   // Start game function
@@ -345,25 +398,25 @@ const FlashcardGame = () => {
     setGameStartTime(Date.now());
     setGameEndTime(null);
     
-    // Reset progress if restarting
-    setCorrectAnswers([]);
-    setIncorrectAnswers([]);
-    setAnsweredCount(0);
+    // Reset progress for a new game session
+    resetSessionProgress();
     
-    // Initialize mastered words based on their current state
-    const alreadyMasteredWords = filteredWords
-      .filter(word => word.mastered)
-      .map(word => word.id);
-    setMasteredWords(alreadyMasteredWords);
+    // Apply session mastery status to filtered words (all words start unmastered in a new game)
+    const wordsWithSessionStatus = filteredWords.map(word => ({
+      ...word,
+      mastered: false,
+      timesCorrect: 0,
+      timesIncorrect: 0,
+      correctStreak: 0
+    }));
     
-    // Set unmastered words - ENSURE ONLY UNMASTERED WORDS ARE INCLUDED
-    const notMastered = filteredWords.filter(word => !word.mastered);
-    setUnmasteredWords(notMastered);
-    console.log("Starting game with unmastered words:", notMastered.length);
+    // Set all words as unmastered at the start of a new game
+    setUnmasteredWords(wordsWithSessionStatus);
+    console.log("Starting game with unmastered words:", wordsWithSessionStatus.length);
     
-    // Randomize the first word to show if there are unmastered words
-    if (notMastered.length > 0) {
-      const randomIndex = Math.floor(Math.random() * notMastered.length);
+    // Randomize the first word to show
+    if (wordsWithSessionStatus.length > 0) {
+      const randomIndex = Math.floor(Math.random() * wordsWithSessionStatus.length);
       setCurrentWordIndex(randomIndex);
       console.log(`Initial unmastered word index: ${randomIndex}`);
     } else {
@@ -371,22 +424,13 @@ const FlashcardGame = () => {
     }
     
     // Save the filtered words for this game session
-    setGameSessionWords([...filteredWords]);
+    setGameSessionWords(wordsWithSessionStatus);
     
     toast({
       title: "Game Started",
-      description: `Focus on mastering ${notMastered.length} remaining words!`,
+      description: `Focus on mastering ${wordsWithSessionStatus.length} words in this session!`,
       duration: 2000,
     });
-    
-    // If all words are already mastered, show game completion message
-    if (notMastered.length === 0) {
-      toast({
-        title: "All Words Mastered",
-        description: "Congratulations! You've already mastered all words in this selection.",
-        duration: 2000,
-      });
-    }
   };
   
   // End game function with progress reset
@@ -396,13 +440,7 @@ const FlashcardGame = () => {
     setGameEndTime(Date.now());
     
     // Keep game session words for stats
-    
-    // Don't reset word mastery progress in localStorage when game ends anymore
-    // This change allows progress to persist between game sessions
-    // resetWordMasteryProgress();
-    
-    // Don't reload the words to get fresh state from localStorage anymore
-    // loadWords();
+    // We're not persisting mastery progress to localStorage anymore
   };
   
   // Calculate game statistics
@@ -410,7 +448,7 @@ const FlashcardGame = () => {
     const totalCards = filteredWords.length;
     const correctCount = correctAnswers.length;
     const incorrectCount = incorrectAnswers.length;
-    const accuracy = totalCards > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
+    const accuracy = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
     
     let timeTaken = 0;
     if (gameStartTime && gameEndTime) {
@@ -433,9 +471,9 @@ const FlashcardGame = () => {
     return `${minutes}m ${remainingSeconds}s`;
   };
   
-  // Calculate mastery progress percentage
+  // Calculate mastery progress percentage based on session-only mastery
   const masteryProgressPercentage = filteredWords.length > 0 
-    ? Math.round((masteredWords.length * 100) / filteredWords.length) 
+    ? Math.round((sessionMasteredWords.length * 100) / filteredWords.length) 
     : 0;
 
   // Get text for source display
@@ -561,7 +599,7 @@ const FlashcardGame = () => {
               <CardContent>
                 <RadioGroup 
                   value={direction} 
-                  onValueChange={handleDirectionChange} 
+                  onValueChange={(value: "german-to-english" | "english-to-german") => handleDirectionChange(value)} 
                   className="flex flex-col space-y-1"
                 >
                   <div className="flex items-center space-x-2">
@@ -609,7 +647,7 @@ const FlashcardGame = () => {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex justify-between text-sm mb-1 dark:text-gray-300">
-                  <span>Mastered: {masteredWords.length}/{filteredWords.length} words</span>
+                  <span>Mastered: {sessionMasteredWords.length}/{filteredWords.length} words</span>
                   <span>{masteryProgressPercentage}%</span>
                 </div>
                 <Progress value={masteryProgressPercentage} className="h-2" />
@@ -626,8 +664,11 @@ const FlashcardGame = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {/* Word Progress Dialog */}
-                    <WordProgressDialog words={filteredWords} />
+                    {/* Word Progress Dialog - now with gameSessionOnly prop */}
+                    <WordProgressDialog 
+                      words={applySessionMasteryStatus(filteredWords)} 
+                      gameSessionOnly={true} 
+                    />
                     
                     {gameActive && (
                       <Button 
@@ -717,8 +758,6 @@ const FlashcardGame = () => {
                 variant="outline"
                 onClick={() => {
                   setShowResults(false);
-                  // Reload the words to get fresh state after reset
-                  loadWords();
                 }}
                 className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
@@ -824,7 +863,7 @@ const FlashcardGame = () => {
             </div>
 
             {/* Make sure currentWordIndex is valid before rendering FlashcardComponent */}
-            {currentWordIndex >= 0 && currentWordIndex < unmasteredWords.length ? (
+            {currentWordIndex >= 0 && unmasteredWords.length > 0 && currentWordIndex < unmasteredWords.length ? (
               <FlashcardComponent
                 word={unmasteredWords[currentWordIndex]}
                 direction={direction}
