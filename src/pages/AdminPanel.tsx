@@ -17,7 +17,9 @@ import {
   updateVocabularyWord,
   addMultipleVocabularyWords,
   clearVocabulary,
-  getAllSources
+  getAllSources,
+  getVocabularyBySource,
+  getApprovedVocabularyBySource
 } from "@/utils/vocabularyService";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
@@ -41,7 +43,7 @@ const AdminPanel = () => {
   const [newEnglish, setNewEnglish] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [fileSources, setFileSources] = useState<string[]>([]);
-  const [selectedSource, setSelectedSource] = useState<string>("");
+  const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
 
   useEffect(() => {
@@ -141,6 +143,7 @@ const AdminPanel = () => {
       clearVocabulary();
       setVocabulary(getVocabulary());
       setFileSources([]);
+      setSelectedSource(undefined);
       
       toast({
         title: "Vocabulary Reset",
@@ -149,11 +152,6 @@ const AdminPanel = () => {
       });
     }
   };
-
-  // Filter vocabulary by source
-  const filteredVocabulary = selectedSource 
-    ? vocabulary.filter(word => word.source === selectedSource)
-    : vocabulary;
 
   // View words from a specific source
   const handleViewSourceWords = (source: string) => {
@@ -167,30 +165,16 @@ const AdminPanel = () => {
   };
 
   // Clear source filter
-  const clearSourceFilter = () => {
-    setSelectedSource("");
+  const handleClearSourceFilter = () => {
+    setSelectedSource(undefined);
   };
 
   // Create flashcards from a specific source
   const handleCreateSourceFlashcards = (source: string) => {
     // Get the source words and ensure they're approved
-    const sourceWords = vocabulary.filter(word => word.source === source);
+    const approvedWords = getApprovedVocabularyBySource(source);
     
-    // Check if there are any words from this source
-    if (sourceWords.length === 0) {
-      toast({
-        title: "No Words Found",
-        description: `No words found from source "${source}"`,
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-
-    // Count approved words
-    const approvedWords = sourceWords.filter(word => word.approved);
-    
-    // If no approved words, inform the user
+    // Check if there are any approved words from this source
     if (approvedWords.length === 0) {
       toast({
         title: "No Approved Words",
@@ -212,6 +196,10 @@ const AdminPanel = () => {
     
     // Navigate to the flashcard game
     window.location.href = "/flashcards";
+  };
+
+  const handleSourceChange = (source: string | undefined) => {
+    setSelectedSource(source);
   };
 
   if (!isAdmin) {
@@ -272,32 +260,17 @@ const AdminPanel = () => {
             </Card>
 
             <div className="mt-8">
-              {selectedSource && (
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">
-                      Filtering by source: "{selectedSource}"
-                    </span>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={clearSourceFilter}>
-                    Clear Filter
-                  </Button>
-                </div>
-              )}
-              
               <h3 className="text-xl font-semibold mb-4">
-                {selectedSource 
-                  ? `Words from "${selectedSource}" (${filteredVocabulary.length})` 
-                  : `Vocabulary List (${vocabulary.length})`
-                }
+                Vocabulary Management
               </h3>
               
               <VocabularyList
-                words={filteredVocabulary}
                 onApproveWord={handleApproveWord}
                 onDeleteWord={handleDeleteWord}
                 onEditWord={handleEditWord}
+                selectedSource={selectedSource}
+                sources={fileSources}
+                onSourceChange={handleSourceChange}
               />
             </div>
           </TabsContent>
@@ -327,7 +300,7 @@ const AdminPanel = () => {
                   <ScrollArea className="h-[400px] rounded-md border p-4">
                     <div className="space-y-2">
                       {fileSources.map((source) => {
-                        const sourceWords = vocabulary.filter(word => word.source === source);
+                        const sourceWords = getVocabularyBySource(source);
                         const approvedCount = sourceWords.filter(word => word.approved).length;
                         
                         return (

@@ -5,7 +5,7 @@ export interface ParsedWord {
 }
 
 // Text parser utility to extract vocabulary words from text files
-export const extractVocabularyFromText = async (file: File): Promise<Array<ParsedWord>> => {
+export const extractVocabularyFromText = async (file: File, sourceLanguage: string = 'de', targetLanguage: string = 'en'): Promise<Array<ParsedWord>> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -17,7 +17,7 @@ export const extractVocabularyFromText = async (file: File): Promise<Array<Parse
         const words = extractWords(text);
         
         // Step 2: For each word, get a translation
-        const translatedWords = await translateWords(words);
+        const translatedWords = await translateWords(words, sourceLanguage, targetLanguage);
         
         resolve(translatedWords);
       } catch (err) {
@@ -66,198 +66,205 @@ const extractWords = (text: string): string[] => {
   ];
   
   return uniqueWords.filter(word => 
-    !stopwords.includes(word.toLowerCase()) &&
-    isLikelyGerman(word)
+    !stopwords.includes(word.toLowerCase())
   );
 };
 
-// Helper function to check if a word is likely German
-const isLikelyGerman = (word: string): boolean => {
-  // Words with German-specific characters are likely German
-  if (/[äöüÄÖÜß]/.test(word)) {
-    return true;
-  }
+// Translation function using mock/dictionary for demo
+// In a real app, this would use a translation API like Google Translate or DeepL
+const translateWords = async (sourceWords: string[], sourceLanguage: string = 'de', targetLanguage: string = 'en'): Promise<ParsedWord[]> => {
+  // In a real app, this would call a translation API
   
-  // Check for common German letter combinations
-  const germanCombinations = ['sch', 'ch', 'ei', 'ie', 'ck', 'tz', 'eu', 'äu', 'qu'];
-  for (const combo of germanCombinations) {
-    if (word.toLowerCase().includes(combo)) {
-      return true;
+  // Adding translationKey as a proxy for what would be a real API key
+  // This would normally be stored securely in an environment variable
+  const translationKey = 'mock-translation-api-key';
+  
+  console.log(`Translation requested: ${sourceWords.length} words from ${sourceLanguage} to ${targetLanguage}`);
+  
+  // This is where we would make an API call in a real application
+  // For demonstration, we'll use a dictionary for common DE-EN translations
+  
+  // Mock translation - Dictionary of common translations
+  const dictionary: Record<string, Record<string, string>> = {
+    'de': {
+      'en': {
+        // Common nouns
+        "Haus": "house",
+        "Tisch": "table",
+        "Stuhl": "chair",
+        "Buch": "book",
+        "Auto": "car",
+        "Stadt": "city",
+        "Land": "country",
+        "Wasser": "water",
+        "Feuer": "fire",
+        "Erde": "earth",
+        "Luft": "air",
+        "Baum": "tree",
+        "Blume": "flower",
+        "Tier": "animal",
+        "Hund": "dog",
+        "Katze": "cat",
+        "Mann": "man",
+        "Frau": "woman",
+        "Kind": "child",
+        "Freund": "friend",
+        "Familie": "family",
+        "Eltern": "parents",
+        "Mutter": "mother",
+        "Vater": "father",
+        "Bruder": "brother",
+        "Schwester": "sister",
+        "Schule": "school",
+        "Arbeit": "work",
+        "Zeit": "time",
+        "Jahr": "year",
+        "Monat": "month",
+        "Woche": "week",
+        "Tag": "day",
+        "Nacht": "night",
+        "Morgen": "morning",
+        "Abend": "evening",
+        "Essen": "food",
+        "Wein": "wine",
+        "Bier": "beer",
+        "Brot": "bread",
+        "Obst": "fruit",
+        "Gemüse": "vegetables"
+      },
+      'fr': {
+        "Haus": "maison",
+        "Tisch": "table",
+        "Stuhl": "chaise",
+        "Buch": "livre",
+        "Auto": "voiture"
+      }
+    },
+    'en': {
+      'de': {
+        "house": "Haus",
+        "table": "Tisch",
+        "chair": "Stuhl",
+        "book": "Buch",
+        "car": "Auto"
+      },
+      'fr': {
+        "house": "maison",
+        "table": "table",
+        "chair": "chaise",
+        "book": "livre",
+        "car": "voiture"
+      }
     }
-  }
-  
-  // Check for common German endings
-  const germanEndings = ['ung', 'heit', 'keit', 'chen', 'lein', 'lich', 'ig', 'isch'];
-  for (const ending of germanEndings) {
-    if (word.toLowerCase().endsWith(ending)) {
-      return true;
-    }
-  }
-  
-  // Default to true for words that pass the 4+ letter filter
-  // This is a simplified approach - in a real app, you'd want a more sophisticated check
-  return true;
-};
-
-// Translation function
-const translateWords = async (germanWords: string[]): Promise<ParsedWord[]> => {
-  // In a real app, this would call a translation API like Google Translate, DeepL, etc.
-  // For demonstration purposes, we'll use a dictionary for common words and a mock translation for others
-  
-  const translations: ParsedWord[] = [];
-  
-  // Dictionary of common German-English translations
-  const dictionary: Record<string, string> = {
-    // Common nouns
-    "Haus": "house",
-    "Tisch": "table",
-    "Stuhl": "chair",
-    "Buch": "book",
-    "Auto": "car",
-    "Stadt": "city",
-    "Land": "country",
-    "Wasser": "water",
-    "Feuer": "fire",
-    "Erde": "earth",
-    "Luft": "air",
-    "Baum": "tree",
-    "Blume": "flower",
-    "Tier": "animal",
-    "Hund": "dog",
-    "Katze": "cat",
-    "Mann": "man",
-    "Frau": "woman",
-    "Kind": "child",
-    "Freund": "friend",
-    "Familie": "family",
-    "Eltern": "parents",
-    "Mutter": "mother",
-    "Vater": "father",
-    "Bruder": "brother",
-    "Schwester": "sister",
-    "Schule": "school",
-    "Arbeit": "work",
-    "Zeit": "time",
-    "Jahr": "year",
-    "Monat": "month",
-    "Woche": "week",
-    "Tag": "day",
-    "Nacht": "night",
-    "Morgen": "morning",
-    "Abend": "evening",
-    "Essen": "food",
-    "Wein": "wine",
-    "Bier": "beer",
-    "Brot": "bread",
-    "Obst": "fruit",
-    "Gemüse": "vegetables",
-    
-    // Common verbs
-    "gehen": "go",
-    "kommen": "come",
-    "machen": "make",
-    "sehen": "see",
-    "hören": "hear",
-    "sprechen": "speak",
-    "sagen": "say",
-    "essen": "eat",
-    "trinken": "drink",
-    "schlafen": "sleep",
-    "leben": "live",
-    "lieben": "love",
-    "denken": "think",
-    "wissen": "know",
-    "können": "can",
-    "wollen": "want",
-    "müssen": "must",
-    "sollen": "should",
-    "dürfen": "may",
-    
-    // Common adjectives
-    "groß": "big",
-    "klein": "small",
-    "lang": "long",
-    "kurz": "short",
-    "hoch": "high",
-    "tief": "deep",
-    "breit": "wide",
-    "schmal": "narrow",
-    "dick": "thick",
-    "dünn": "thin",
-    "schwer": "heavy",
-    "leicht": "light",
-    "schnell": "fast",
-    "langsam": "slow",
-    "stark": "strong",
-    "schwach": "weak",
-    "reich": "rich",
-    "arm": "poor",
-    "jung": "young",
-    "alt": "old",
-    "neu": "new",
-    "gut": "good",
-    "schlecht": "bad",
-    "schön": "beautiful",
-    "hässlich": "ugly",
-    "kalt": "cold",
-    "warm": "warm",
-    "heiß": "hot"
+    // Add more language combinations as needed
   };
   
-  for (const germanWord of germanWords) {
-    // Try case-insensitive lookup first
-    const germanLower = germanWord.toLowerCase();
-    
-    // Check for direct match
-    if (dictionary[germanWord]) {
-      translations.push({
-        german: germanWord,
-        english: dictionary[germanWord]
-      });
-      continue;
-    }
-    
-    // Check for case-insensitive match
-    const matchKey = Object.keys(dictionary).find(
-      key => key.toLowerCase() === germanLower
-    );
-    
-    if (matchKey) {
-      translations.push({
-        german: germanWord,
-        english: dictionary[matchKey]
-      });
-      continue;
-    }
-    
-    // Generate a mock translation by changing the ending
-    // This is just a demo - a real application would use a translation API
-    let englishWord = germanLower;
-    
-    // Apply some simple transformation rules
-    if (germanLower.endsWith("en")) {
-      // Convert German verb infinitives: machen -> make, gehen -> go
-      englishWord = germanLower.slice(0, -2);
-    } else if (germanLower.endsWith("ung")) {
-      // Convert -ung nouns: Hoffnung -> hope
-      englishWord = germanLower.slice(0, -3) + "e";
-    } else if (germanLower.endsWith("heit") || germanLower.endsWith("keit")) {
-      // Convert abstract nouns: Schönheit -> beauty
-      englishWord = germanLower.slice(0, -4) + "ness";
-    } else if (germanLower.endsWith("lich")) {
-      // Convert adjectives: freundlich -> friendly
-      englishWord = germanLower.slice(0, -4) + "ly";
-    }
-    
-    // Add to translations
-    translations.push({
-      german: germanWord,
-      english: englishWord
-    });
-  }
+  // In a real implementation, handle the case when we have API problems
+  // by returning partial results, error messages, etc.
   
-  // In a real application, you would batch translate using an API
-  // For example: const translations = await translateApi.translate(germanWords, 'de', 'en');
+  const translations: ParsedWord[] = [];
+
+  try {
+    // The actual API call would happen here, something like:
+    // const translationResponse = await fetch('https://translation-api.com/translate', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Authorization': `Bearer ${translationKey}`,
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify({
+    //     q: sourceWords,
+    //     source: sourceLanguage,
+    //     target: targetLanguage,
+    //     format: 'text'
+    //   })
+    // }).then(res => res.json());
+    
+    // Map the source words to the target language
+    for (const sourceWord of sourceWords) {
+      const sourceWordLower = sourceWord.toLowerCase();
+      let translation = '';
+      
+      // Check dictionary first using source language
+      if (dictionary[sourceLanguage]?.[targetLanguage]?.[sourceWord]) {
+        translation = dictionary[sourceLanguage][targetLanguage][sourceWord];
+      } else if (dictionary[sourceLanguage]?.[targetLanguage]?.[sourceWordLower]) {
+        translation = dictionary[sourceLanguage][targetLanguage][sourceWordLower];
+      } else {
+        // For demo purposes, create a mock translation
+        // In a real app, the actual translation would come from the API
+        
+        // Simple mock algorithm to show that we're "translating"
+        if (sourceLanguage === 'de' && targetLanguage === 'en') {
+          // German to English mock translation
+          translation = sourceWord
+            .replace(/sch/g, 'sh')
+            .replace(/ei/g, 'i')
+            .replace(/eu/g, 'oi')
+            .replace(/ch/g, 'ch')
+            .replace(/ä/g, 'ae')
+            .replace(/ö/g, 'oe')
+            .replace(/ü/g, 'ue')
+            .replace(/ß/g, 'ss');
+            
+          // Add '-en' to the end of some words to make them feel "more English"
+          if (Math.random() > 0.7) {
+            translation += 'en';
+          }
+        } else if (sourceLanguage === 'en' && targetLanguage === 'de') {
+          // English to German mock translation
+          translation = sourceWord
+            .replace(/sh/g, 'sch')
+            .replace(/th/g, 't')
+            .replace(/w/g, 'v')
+            .replace(/i/g, 'ie')
+            .replace(/y$/, 'ie');
+            
+          // Occasionally add typical German word endings
+          if (Math.random() > 0.7) {
+            translation += 'en';
+          } else if (Math.random() > 0.5) {
+            translation += 'ung';
+          }
+        } else {
+          // Generic "translation" - just add a language-specific prefix
+          const prefixes = {
+            'de': 'de-',
+            'en': 'en-',
+            'fr': 'fr-',
+            'es': 'es-',
+            'it': 'it-'
+          };
+          translation = (prefixes[targetLanguage as keyof typeof prefixes] || '') + sourceWord;
+        }
+      }
+      
+      // Output the pair
+      if (sourceLanguage === 'de' && targetLanguage === 'en') {
+        translations.push({
+          german: sourceWord,
+          english: translation 
+        });
+      } else if (sourceLanguage === 'en' && targetLanguage === 'de') {
+        translations.push({
+          german: translation,
+          english: sourceWord
+        });
+      } else {
+        // For other language pairs, we still need to map to our data model
+        // This is a simplification; in a real app, you might want to store
+        // the actual source language and target language separately
+        translations.push({
+          german: sourceLanguage === 'de' ? sourceWord : translation,
+          english: targetLanguage === 'en' ? translation : sourceWord
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Translation error:", error);
+    // In a real app, you might want to handle the error more gracefully
+    // For now, we'll just return what we have
+  }
   
   return translations;
 };

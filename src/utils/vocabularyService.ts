@@ -1,3 +1,4 @@
+
 export interface VocabularyWord {
   id: string;
   german: string;
@@ -44,6 +45,36 @@ export const getVocabulary = (): VocabularyWord[] => {
 export const getApprovedVocabulary = (): VocabularyWord[] => {
   const vocabulary = getVocabulary();
   return vocabulary.filter(word => word.approved);
+};
+
+// Get paginated vocabulary
+export const getPaginatedVocabulary = (
+  page: number = 1, 
+  pageSize: number = 20, 
+  searchTerm: string = '',
+  source?: string
+): { words: VocabularyWord[], totalCount: number } => {
+  const vocabulary = getVocabulary();
+  
+  // Filter by search term and source if provided
+  const filtered = vocabulary.filter(word => {
+    const matchesSearch = searchTerm === '' || 
+      word.german.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      word.english.toLowerCase().includes(searchTerm.toLowerCase());
+      
+    const matchesSource = !source || word.source === source;
+    
+    return matchesSearch && matchesSource;
+  });
+  
+  const totalCount = filtered.length;
+  const startIndex = (page - 1) * pageSize;
+  const paginatedWords = filtered.slice(startIndex, startIndex + pageSize);
+  
+  return {
+    words: paginatedWords,
+    totalCount
+  };
 };
 
 // Add a new vocabulary word
@@ -98,7 +129,20 @@ export const deleteVocabularyWord = (id: string): void => {
 export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string }>, source?: string): void => {
   const vocabulary = getVocabulary();
   
-  const newWords = words.map(word => ({
+  // Create a map of existing german-english pairs to prevent duplicates
+  const existingPairs = new Map<string, boolean>();
+  vocabulary.forEach(word => {
+    const key = `${word.german.toLowerCase()}-${word.english.toLowerCase()}`;
+    existingPairs.set(key, true);
+  });
+  
+  // Filter out duplicates
+  const uniqueNewWords = words.filter(word => {
+    const key = `${word.german.toLowerCase()}-${word.english.toLowerCase()}`;
+    return !existingPairs.has(key);
+  });
+  
+  const newWords = uniqueNewWords.map(word => ({
     id: Date.now() + Math.random().toString(36).substring(2, 8),
     german: word.german,
     english: word.english,
@@ -156,6 +200,12 @@ export const getVocabularyByDifficulty = (difficulty: number): VocabularyWord[] 
 // Get all vocabulary words by source
 export const getVocabularyBySource = (source: string): VocabularyWord[] => {
   const vocabulary = getVocabulary();
+  return vocabulary.filter(word => word.source === source);
+};
+
+// Get approved vocabulary by source
+export const getApprovedVocabularyBySource = (source: string): VocabularyWord[] => {
+  const vocabulary = getApprovedVocabulary();
   return vocabulary.filter(word => word.source === source);
 };
 

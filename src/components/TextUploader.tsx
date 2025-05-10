@@ -91,7 +91,8 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
     }, 200);
 
     try {
-      const words = await extractVocabularyFromText(file);
+      // Pass the selected languages to the extraction function
+      const words = await extractVocabularyFromText(file, sourceLanguage, targetLanguage);
       setExtractedWords(words);
       
       // Pre-select all words by default
@@ -197,8 +198,9 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
                     <span className="sr-only">Text import information</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="max-w-xs">Upload a .txt file to extract words for your vocabulary list.</p>
+                <TooltipContent side="right" className="max-w-xs">
+                  <p>Upload a .txt file to extract words (4+ letters) for your vocabulary list. 
+                  Words will be translated between your selected languages.</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -239,7 +241,7 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
         {uploadProgress > 0 && importStatus === "processing" && (
           <div className="w-full bg-gray-200 rounded-full h-2.5">
             <div
-              className="bg-german-gold h-2.5 rounded-full"
+              className="bg-primary h-2.5 rounded-full"
               style={{ width: `${uploadProgress}%` }}
             ></div>
           </div>
@@ -341,7 +343,7 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
               {selectedCount} of {extractedWords.length} words selected for import
             </p>
             
-            <ScrollArea className="h-80 rounded border p-2">
+            <ScrollArea className="h-96 rounded border p-2">
               <div className="w-full">
                 <table className="w-full text-sm">
                   <thead>
