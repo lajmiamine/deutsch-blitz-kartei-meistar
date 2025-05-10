@@ -19,7 +19,8 @@ import {
   clearVocabulary,
   getAllSources,
   getVocabularyBySource,
-  getApprovedVocabularyBySource
+  getApprovedVocabularyBySource,
+  deleteWordsBySource
 } from "@/utils/vocabularyService";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
@@ -34,7 +35,18 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { FileText } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { FileText, Trash } from "lucide-react";
 
 const AdminPanel = () => {
   const { toast } = useToast();
@@ -108,8 +120,9 @@ const AdminPanel = () => {
 
   const handleApproveWord = (id: string, approved: boolean) => {
     updateWordApproval(id, approved);
+    
+    // Update the local state to make sure the checkbox state changes immediately
     setVocabulary(prev => {
-      // Update the local state immediately to fix checkbox issue
       return prev.map(word => {
         if (word.id === id) {
           return { ...word, approved };
@@ -133,6 +146,28 @@ const AdminPanel = () => {
       title: "Word Deleted",
       description: "The vocabulary word has been removed.",
       duration: 2000,
+    });
+  };
+
+  const handleDeleteWordsBySource = (source: string) => {
+    const deletedCount = deleteWordsBySource(source);
+    
+    // Refresh vocabulary and sources lists
+    const updatedVocabulary = getVocabulary();
+    setVocabulary(updatedVocabulary);
+    
+    // Check if there are any words left from this source
+    const remainingSourceWords = updatedVocabulary.filter(w => w.source === source);
+    if (remainingSourceWords.length === 0) {
+      // No more words from this source, update sources list
+      setFileSources(getAllSources());
+      setSelectedSource(undefined); // Clear the source filter if it was set
+    }
+    
+    toast({
+      title: "Words Deleted",
+      description: `Deleted ${deletedCount} words from "${source}".`,
+      duration: 3000,
     });
   };
 
@@ -367,6 +402,36 @@ const AdminPanel = () => {
                                 >
                                   Create Flashcards
                                 </Button>
+                                
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button 
+                                      size="sm" 
+                                      variant="destructive"
+                                    >
+                                      <Trash className="h-4 w-4 mr-1" />
+                                      Delete All
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete all words from this source?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will permanently delete all {sourceWords.length} words imported from "{source}". 
+                                        This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleDeleteWordsBySource(source)} 
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Delete All Words
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </div>
                             </div>
                             

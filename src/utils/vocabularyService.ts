@@ -125,6 +125,17 @@ export const deleteVocabularyWord = (id: string): void => {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
 };
 
+// Delete all vocabulary words from a specific source
+export const deleteWordsBySource = (source: string): number => {
+  const vocabulary = getVocabulary();
+  const wordsBeforeDelete = vocabulary.length;
+  const updatedVocabulary = vocabulary.filter(word => word.source !== source);
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+  
+  // Return the number of words that were deleted
+  return wordsBeforeDelete - updatedVocabulary.length;
+};
+
 // Add multiple vocabulary words (e.g., from text import)
 export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string }>, source?: string): void => {
   const vocabulary = getVocabulary();

@@ -96,6 +96,19 @@ const VocabularyList = ({
     }
   };
 
+  // Fix for the checkbox update issue - Create a handler that updates local state immediately
+  const handleApproveWordWithStateUpdate = (id: string, approved: boolean) => {
+    // Update the local words state immediately
+    setWords(currentWords => 
+      currentWords.map(word => 
+        word.id === id ? { ...word, approved } : word
+      )
+    );
+    
+    // Call the parent component's handler
+    onApproveWord(id, approved);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
@@ -159,7 +172,7 @@ const VocabularyList = ({
                     <Checkbox
                       checked={word.approved}
                       onCheckedChange={(checked) => 
-                        onApproveWord(word.id, checked === true)
+                        handleApproveWordWithStateUpdate(word.id, checked === true)
                       }
                     />
                   </TableCell>
