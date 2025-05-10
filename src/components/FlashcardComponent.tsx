@@ -182,6 +182,8 @@ const FlashcardComponent = ({
                   {direction === "german-to-english" ? "Translate to English" : "Translate to German"}
                 </p>
                 {sourceDisplay}
+                {/* Add word progress stats here on the front card */}
+                {wordProgressStats}
                 {hint && (
                   <p className="text-sm text-muted-foreground dark:text-gray-400">Hint: {hint}</p>
                 )}
