@@ -10,13 +10,24 @@ interface FlashcardComponentProps {
   onCorrect: () => void;
   onIncorrect: () => void;
   onSkip: () => void;
+  direction: "german-to-english" | "english-to-german";
 }
 
-const FlashcardComponent = ({ word, onCorrect, onIncorrect, onSkip }: FlashcardComponentProps) => {
+const FlashcardComponent = ({ 
+  word, 
+  onCorrect, 
+  onIncorrect, 
+  onSkip,
+  direction
+}: FlashcardComponentProps) => {
   const [userAnswer, setUserAnswer] = useState("");
   const [isFlipped, setIsFlipped] = useState(false);
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
   const [hint, setHint] = useState("");
+
+  // Determine which word to show based on direction
+  const promptWord = direction === "german-to-english" ? word.german : word.english;
+  const correctAnswer = direction === "german-to-english" ? word.english : word.german;
 
   useEffect(() => {
     // Reset states when word changes
@@ -24,11 +35,11 @@ const FlashcardComponent = ({ word, onCorrect, onIncorrect, onSkip }: FlashcardC
     setIsFlipped(false);
     setFeedback(null);
     setHint("");
-  }, [word]);
+  }, [word, direction]);
 
   const checkAnswer = () => {
     const normalizedUserAnswer = userAnswer.trim().toLowerCase();
-    const normalizedCorrectAnswer = word.english.trim().toLowerCase();
+    const normalizedCorrectAnswer = correctAnswer.trim().toLowerCase();
     
     if (normalizedUserAnswer === normalizedCorrectAnswer) {
       setFeedback("correct");
@@ -47,7 +58,7 @@ const FlashcardComponent = ({ word, onCorrect, onIncorrect, onSkip }: FlashcardC
   };
   
   const provideHint = () => {
-    const words = word.english.split(" ");
+    const words = correctAnswer.split(" ");
     let newHint = "";
     
     if (words.length > 1) {
@@ -55,7 +66,7 @@ const FlashcardComponent = ({ word, onCorrect, onIncorrect, onSkip }: FlashcardC
       newHint = words.map(w => w[0] + "...").join(" ");
     } else {
       // For single words, show the first letter and length
-      newHint = word.english[0] + "..." + ` (${word.english.length} letters)`;
+      newHint = correctAnswer[0] + "..." + ` (${correctAnswer.length} letters)`;
     }
     
     setHint(newHint);
@@ -68,8 +79,11 @@ const FlashcardComponent = ({ word, onCorrect, onIncorrect, onSkip }: FlashcardC
           <div className="flex flex-col items-center space-y-8">
             <div className="space-y-2 text-center">
               <h3 className="text-2xl font-bold text-german-black">
-                {word.german}
+                {promptWord}
               </h3>
+              <p className="text-sm text-muted-foreground">
+                {direction === "german-to-english" ? "Translate to English" : "Translate to German"}
+              </p>
               {hint && (
                 <p className="text-sm text-muted-foreground">Hint: {hint}</p>
               )}
@@ -77,7 +91,7 @@ const FlashcardComponent = ({ word, onCorrect, onIncorrect, onSkip }: FlashcardC
             
             <div className="w-full space-y-4">
               <Input
-                placeholder="Type the English translation..."
+                placeholder={`Type the ${direction === "german-to-english" ? "English" : "German"} translation...`}
                 value={userAnswer}
                 onChange={(e) => setUserAnswer(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && checkAnswer()}
@@ -101,13 +115,15 @@ const FlashcardComponent = ({ word, onCorrect, onIncorrect, onSkip }: FlashcardC
         >
           <div className="flex flex-col items-center space-y-6">
             <div className="space-y-1 text-center">
-              <p className="text-sm text-muted-foreground">The German word</p>
-              <h3 className="text-2xl font-bold">{word.german}</h3>
+              <p className="text-sm text-muted-foreground">
+                {direction === "german-to-english" ? "The German word" : "The English word"}
+              </p>
+              <h3 className="text-2xl font-bold">{promptWord}</h3>
             </div>
             
             <div className="space-y-1 text-center">
               <p className="text-sm text-muted-foreground">Translates to</p>
-              <h3 className="text-2xl font-bold">{word.english}</h3>
+              <h3 className="text-2xl font-bold">{correctAnswer}</h3>
             </div>
             
             {feedback && (

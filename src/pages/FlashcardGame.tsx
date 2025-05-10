@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import FlashcardComponent from "@/components/FlashcardComponent";
 import Navbar from "@/components/Navbar";
 import { 
@@ -25,6 +26,7 @@ const FlashcardGame = () => {
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [difficulty, setDifficulty] = useState<"all" | "easy" | "medium" | "hard">("all");
   const [gameStarted, setGameStarted] = useState(false);
+  const [direction, setDirection] = useState<"german-to-english" | "english-to-german">("german-to-english");
 
   // Load words based on selected difficulty
   const loadWords = useCallback(() => {
@@ -130,6 +132,20 @@ const FlashcardGame = () => {
     return (score / totalAttempts) * 100;
   };
 
+  const toggleDirection = () => {
+    setDirection(prev => 
+      prev === "german-to-english" ? "english-to-german" : "german-to-english"
+    );
+    
+    toast({
+      title: "Language Direction Changed",
+      description: direction === "german-to-english" 
+        ? "Now translating from English to German" 
+        : "Now translating from German to English",
+      duration: 2000,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -165,6 +181,17 @@ const FlashcardGame = () => {
                   Challenge yourself with the most difficult words
                 </TabsContent>
               </Tabs>
+              
+              <div className="mt-6 flex items-center justify-center gap-2">
+                <span className="text-sm text-muted-foreground">German → English</span>
+                <Switch 
+                  checked={direction === "english-to-german"}
+                  onCheckedChange={() => setDirection(prev => 
+                    prev === "german-to-english" ? "english-to-german" : "german-to-english"
+                  )}
+                />
+                <span className="text-sm text-muted-foreground">English → German</span>
+              </div>
             </CardContent>
             <CardFooter className="flex justify-center">
               <Button 
@@ -213,6 +240,17 @@ const FlashcardGame = () => {
                      difficulty === "easy" ? "Easy" : 
                      difficulty === "medium" ? "Medium" : "Hard"}
                   </Badge>
+                  <Badge variant="outline" className="bg-german-gold text-black">
+                    {direction === "german-to-english" ? "German → English" : "English → German"}
+                  </Badge>
+                </div>
+                
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <Button variant="outline" size="sm" onClick={toggleDirection}>
+                    {direction === "german-to-english" 
+                      ? "Switch to English → German" 
+                      : "Switch to German → English"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -222,7 +260,8 @@ const FlashcardGame = () => {
                 word={words[currentWordIndex]} 
                 onCorrect={handleCorrectAnswer} 
                 onIncorrect={handleIncorrectAnswer} 
-                onSkip={handleSkip} 
+                onSkip={handleSkip}
+                direction={direction}
               />
             ) : (
               <Card className="p-6 text-center">
