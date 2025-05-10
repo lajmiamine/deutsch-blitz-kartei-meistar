@@ -21,7 +21,6 @@ type ImportStatus = "extracted" | "imported" | "ready" | "none" | "processing";
 const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtracted }) => {
   const { toast } = useToast();
   const [text, setText] = useState<string>("");
-  const [source, setSource] = useState<string>("");
   const [extractedWords, setExtractedWords] = useState<Array<{ german: string; english: string; difficulty?: number }>>([]);
   const [importStatus, setImportStatus] = useState<ImportStatus>("none");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -49,6 +48,8 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
           
           // Call the onWordsExtracted prop if provided
           if (onWordsExtracted && parsedWords.length > 0) {
+            // Use filename without extension as source
+            const source = file.name.replace(/\.[^/.]+$/, "");
             onWordsExtracted(parsedWords, source);
           }
         })
@@ -82,10 +83,10 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       
       // Call the onWordsExtracted prop if provided
       if (onWordsExtracted && newWords.length > 0) {
-        onWordsExtracted(newWords, source);
+        onWordsExtracted(newWords, "Text Input");
       }
     }
-  }, [text, toast, source, onWordsExtracted, file]);
+  }, [text, toast, onWordsExtracted, file]);
   
   const handleImport = async () => {
     if (extractedWords.length === 0) {
@@ -100,6 +101,8 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setIsProcessing(true);
     setImportStatus("processing");
     
+    // Use the filename as source for file imports, or "Text Input" for text
+    const source = file ? file.name.replace(/\.[^/.]+$/, "") : "Text Input";
     const { added, skipped } = addMultipleVocabularyWords(extractedWords, source);
     
     setImportStatus("imported");
@@ -117,7 +120,6 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     
     // Reset the state
     setText("");
-    setSource("");
     setExtractedWords([]);
     setImportStatus("none");
     setFile(null);
@@ -125,7 +127,6 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   
   const handleClear = () => {
     setText("");
-    setSource("");
     setExtractedWords([]);
     setImportStatus("none");
     setFile(null);
@@ -141,10 +142,6 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      // If source is empty, use filename as source
-      if (!source) {
-        setSource(selectedFile.name.replace(/\.[^/.]+$/, "")); // Remove extension
-      }
     }
   };
 
@@ -157,17 +154,6 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="source">Source (Optional)</Label>
-          <Input
-            id="source"
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            placeholder="e.g., 'My Textbook Chapter 1'"
-            className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
-          />
-        </div>
-        
         <div className="grid gap-2">
           <Label htmlFor="fileUpload">Upload File (Optional)</Label>
           <div className="flex items-center gap-2">
