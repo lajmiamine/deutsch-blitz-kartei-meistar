@@ -1,4 +1,3 @@
-
 export interface ParsedWord {
   german: string;
   english: string;
@@ -15,8 +14,12 @@ export const extractVocabularyFromText = async (file: File, sourceLanguage: stri
       try {
         const text = event.target?.result as string || "";
         
-        // Check if the file is an XML file by extension or content
-        if (file.name.toLowerCase().endsWith('.xml') || text.trim().startsWith('<?xml') || text.trim().startsWith('<words>')) {
+        // Check file type by extension or content
+        if (file.name.toLowerCase().endsWith('.json') || text.trim().startsWith('{')) {
+          // Process as JSON
+          const parsedWords = parseJsonVocabulary(text);
+          resolve(parsedWords);
+        } else if (file.name.toLowerCase().endsWith('.xml') || text.trim().startsWith('<?xml') || text.trim().startsWith('<words>')) {
           // Process as XML
           const parsedWords = parseXmlVocabulary(text);
           resolve(parsedWords);
@@ -50,6 +53,51 @@ export const extractVocabularyFromText = async (file: File, sourceLanguage: stri
 const capitalizeFirstLetter = (str: string): string => {
   if (!str) return str;
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
+// Parse JSON vocabulary format
+const parseJsonVocabulary = (jsonContent: string): Array<ParsedWord> => {
+  const parsedWords: ParsedWord[] = [];
+  
+  try {
+    // Parse JSON content
+    const jsonData = JSON.parse(jsonContent);
+    
+    // Handle standard format where words are in a "words" array
+    if (jsonData.words && Array.isArray(jsonData.words)) {
+      jsonData.words.forEach((wordPair: any) => {
+        if (wordPair.german && wordPair.english) {
+          // Capitalize first letter of English translation
+          const formattedEnglish = capitalizeFirstLetter(wordPair.english);
+          
+          parsedWords.push({
+            german: wordPair.german,
+            english: formattedEnglish
+          });
+        }
+      });
+    } 
+    // Alternative format: direct array of word pairs
+    else if (Array.isArray(jsonData)) {
+      jsonData.forEach((wordPair: any) => {
+        if (wordPair.german && wordPair.english) {
+          // Capitalize first letter of English translation
+          const formattedEnglish = capitalizeFirstLetter(wordPair.english);
+          
+          parsedWords.push({
+            german: wordPair.german,
+            english: formattedEnglish
+          });
+        }
+      });
+    }
+    
+    console.log(`Parsed ${parsedWords.length} words from JSON`);
+  } catch (error) {
+    console.error("Error parsing JSON:", error);
+  }
+  
+  return parsedWords;
 };
 
 // XML parser for vocabulary words
