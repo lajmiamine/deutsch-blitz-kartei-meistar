@@ -17,6 +17,9 @@ interface VocabularyListProps {
   selectedSource?: string;
   sources?: string[];
   onSourceChange?: (source: string | undefined) => void;
+  isSelectable?: boolean;
+  selectedWordIds?: string[];
+  onWordSelect?: (id: string, selected: boolean) => void;
 }
 
 const VocabularyList = ({ 
@@ -27,7 +30,10 @@ const VocabularyList = ({
   onUpdateDifficulty,
   selectedSource,
   sources = [],
-  onSourceChange
+  onSourceChange,
+  isSelectable = false,
+  selectedWordIds = [],
+  onWordSelect
 }: VocabularyListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -128,6 +134,13 @@ const VocabularyList = ({
     onUpdateDifficulty(id, difficultyValue);
   };
 
+  // Handle word selection for flashcard game
+  const handleWordSelection = (id: string, selected: boolean) => {
+    if (onWordSelect) {
+      onWordSelect(id, selected);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
@@ -167,18 +180,19 @@ const VocabularyList = ({
         <Table>
           <TableHeader>
             <TableRow>
+              {isSelectable && <TableHead className="w-[60px]">Select</TableHead>}
               <TableHead className="w-[100px]">Approved</TableHead>
               <TableHead>German</TableHead>
               <TableHead>English</TableHead>
               <TableHead>Difficulty</TableHead>
               <TableHead>Source</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              {!isSelectable && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={isSelectable ? 6 : 6} className="text-center py-8">
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
                     <p>Loading vocabulary...</p>
@@ -188,6 +202,16 @@ const VocabularyList = ({
             ) : words.length > 0 ? (
               words.map((word) => (
                 <TableRow key={word.id}>
+                  {isSelectable && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedWordIds.includes(word.id)}
+                        onCheckedChange={(checked) => 
+                          handleWordSelection(word.id, checked === true)
+                        }
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Checkbox
                       checked={word.approved}
@@ -243,30 +267,32 @@ const VocabularyList = ({
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {editingId === word.id ? (
-                      <div className="flex justify-end space-x-2">
-                        <Button size="sm" onClick={saveEdit}>Save</Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                          Cancel
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex justify-end space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => startEditing(word)}>
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => onDeleteWord(word.id)}>
-                          Delete
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
+                  {!isSelectable && (
+                    <TableCell className="text-right">
+                      {editingId === word.id ? (
+                        <div className="flex justify-end space-x-2">
+                          <Button size="sm" onClick={saveEdit}>Save</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end space-x-2">
+                          <Button size="sm" variant="outline" onClick={() => startEditing(word)}>
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => onDeleteWord(word.id)}>
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                <TableCell colSpan={isSelectable ? 6 : 6} className="text-center py-4 text-muted-foreground">
                   No vocabulary words found
                 </TableCell>
               </TableRow>

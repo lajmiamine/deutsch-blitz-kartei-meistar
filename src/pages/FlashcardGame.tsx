@@ -1,828 +1,470 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import Navbar from "@/components/Navbar";
-import FlashcardComponent from "@/components/FlashcardComponent";
-import WordProgressDialog from "@/components/WordProgressDialog";
-import { 
-  VocabularyWord, 
-  getApprovedVocabulary, 
-  getVocabularyByDifficulty, 
-  updateWordStatistics,
-  getAllSources,
-  getApprovedVocabularyBySource,
-  getWordCountByDifficulty,
-  getVocabularyWithProgress,
-  getWordsByIds,
-  resetWordMasteryProgress
-} from "@/utils/vocabularyService";
-import { CircleCheck, X, RefreshCw, Play, Trophy, BarChart, Check } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  VocabularyWord,
+  getVocabularyByDifficulty,
+  updateWordStatistics,
+  getAllSources,
+  getApprovedVocabularyBySource,
+  getApprovedVocabulary,
+  getNonMasteredVocabulary,
+  getNonMasteredVocabularyByDifficulty,
+  getWordsByIds
+} from "@/utils/vocabularyService";
+import FlashcardComponent from "@/components/FlashcardComponent";
+import { Check, X, ArrowRight } from "lucide-react";
+import WordProgressDialog from "@/components/WordProgressDialog";
+import VocabularyList from "@/components/VocabularyList";
 
-const FlashcardGame = () => {
-  const { toast } = useToast();
-  const [words, setWords] = useState<VocabularyWord[]>([]);
-  const [filteredWords, setFilteredWords] = useState<VocabularyWord[]>([]);
-  const [currentWordIndex, setCurrentWordIndex] = useState<number>(0);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
-  const [direction, setDirection] = useState<"german-to-english" | "english-to-german">("german-to-english");
-  const [sources, setSources] = useState<string[]>([]);
-  const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
-  const [wordCounts, setWordCounts] = useState<{easy: number, medium: number, hard: number}>({
-    easy: 0,
-    medium: 0,
-    hard: 0
+interface GameSettings {
+  selectionType: string;
+  difficulty: string;
+  source: string | undefined;
+  direction: string;
+  focusUnmastered: boolean;
+}
+
+type GameStatus = "settings" | "playing" | "complete" | "no-words" | "all-mastered";
+
+const FlashcardGame: React.FC = () => {
+  const [gameStatus, setGameStatus] = useState<GameStatus>("settings");
+  const [settings, setSettings] = useState<GameSettings>({
+    selectionType: "all-vocabulary",
+    difficulty: "1",
+    source: undefined,
+    direction: "german-to-english",
+    focusUnmastered: false,
   });
-  
-  // Word selection mode
-  const [selectionMode, setSelectionMode] = useState<"source" | "individual">("source");
-  const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
-  const [showWordSelector, setShowWordSelector] = useState<boolean>(false);
-  
-  // Track session progress
-  const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
-  const [incorrectAnswers, setIncorrectAnswers] = useState<string[]>([]);
-  const [answeredCount, setAnsweredCount] = useState<number>(0);
-  const [gameSessionWords, setGameSessionWords] = useState<VocabularyWord[]>([]);
-  const [masteredWords, setMasteredWords] = useState<string[]>([]);
-  
-  // Track unmastered words to focus on
   const [unmasteredWords, setUnmasteredWords] = useState<VocabularyWord[]>([]);
+  const [currentWordIndex, setCurrentWordIndex] = useState<number>(0);
+  const [correctAnswers, setCorrectAnswers] = useState<number>(0);
+  const [incorrectAnswers, setIncorrectAnswers] = useState<number>(0);
+  const [masteredCount, setMasteredCount] = useState<number>(0);
+  const [totalWords, setTotalWords] = useState<number>(0);
+  const [sources, setSources] = useState<string[]>([]);
   
-  // Game state
-  const [gameActive, setGameActive] = useState<boolean>(false);
-  const [showResults, setShowResults] = useState<boolean>(false);
-  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
-  const [gameEndTime, setGameEndTime] = useState<number | null>(null);
+  // Add these new states for individual word selection
+  const [selectedWords, setSelectedWords] = useState<VocabularyWord[]>([]);
+  const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
+  const [showWordSelection, setShowWordSelection] = useState(false);
   
-  // Create a ref to track when we need to reload words after source/difficulty changes
-  const shouldReloadWords = useRef(false);
+  const { selectionType, difficulty, source, direction, focusUnmastered } = settings;
 
-  // Load vocabulary when component mounts
   useEffect(() => {
-    // Check if a source was selected in the admin panel
-    const preselectedSource = localStorage.getItem("flashcard_source");
-    if (preselectedSource) {
-      setSelectedSource(preselectedSource);
-      // Clear it so it doesn't affect future visits
-      localStorage.removeItem("flashcard_source");
-    }
-    
-    const allSources = getAllSources();
-    setSources(allSources);
-    
-    loadWords();
+    const availableSources = getAllSources();
+    setSources(availableSources);
   }, []);
 
-  // Update filtered words when selection criteria change
-  useEffect(() => {
-    if (shouldReloadWords.current) {
-      loadWords();
-      shouldReloadWords.current = false;
-    } else {
-      filterWords();
-    }
-  }, [selectedDifficulty, words, selectedSource, selectionMode, selectedWordIds]);
-
-  const loadWords = () => {
-    let loadedWords: VocabularyWord[] = [];
-    
-    if (selectedSource) {
-      if (selectedSource === "other") {
-        // Get words without any source
-        loadedWords = getApprovedVocabulary().filter(word => !word.source);
+  const getInitialWords = useCallback(() => {
+    if (selectionType === "all-vocabulary") {
+      return getApprovedVocabulary();
+    } else if (selectionType === "individual-words") {
+      return selectedWords;
+    } else if (selectionType === "by-difficulty") {
+      return getVocabularyByDifficulty(parseInt(difficulty));
+    } else if (selectionType === "by-source") {
+      return getApprovedVocabularyBySource(source || "");
+    } else if (selectionType === "non-mastered") {
+      if (difficulty === "0") {
+        return getNonMasteredVocabulary();
       } else {
-        // Get words from a specific source
-        loadedWords = getApprovedVocabularyBySource(selectedSource);
-      }
-    } else {
-      // Get all approved vocabulary
-      loadedWords = getApprovedVocabulary();
-    }
-    
-    setWords(loadedWords);
-    
-    // Update word counts with the current source selection
-    const counts = getWordCountByDifficulty(selectedSource);
-    setWordCounts(counts);
-    
-    if (loadedWords.length === 0) {
-      toast({
-        title: "No Words Available",
-        description: "There are no approved vocabulary words. Please add some in the admin panel.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const filterWords = () => {
-    if (words.length === 0) return;
-    
-    let filtered: VocabularyWord[] = [];
-    
-    if (selectionMode === "individual" && selectedWordIds.length > 0) {
-      // Filter by selected individual words
-      filtered = getWordsByIds(selectedWordIds);
-    } else {
-      // Filter by source and difficulty
-      filtered = [...words];
-      
-      // Apply difficulty filter
-      if (selectedDifficulty !== "all") {
-        const difficultyLevel = parseInt(selectedDifficulty);
-        filtered = filtered.filter(word => word.difficulty === difficultyLevel);
+        return getNonMasteredVocabularyByDifficulty(parseInt(difficulty));
       }
     }
+    return [];
+  }, [selectionType, difficulty, source, selectedWords]);
 
-    // Filter out mastered words
-    filtered = filtered.filter(word => !word.mastered);
-    
-    // Shuffle the array for random order
-    filtered.sort(() => Math.random() - 0.5);
-    
-    setFilteredWords(filtered);
-    
-    // Initialize unmastered words array
-    setUnmasteredWords(filtered);
-    
-    setCurrentWordIndex(0);
-    
-    if (filtered.length === 0) {
-      toast({
-        title: "No Words Match Criteria",
-        description: `There are no ${
-          selectedDifficulty === "1" ? "easy" : 
-          selectedDifficulty === "2" ? "medium" : 
-          selectedDifficulty === "3" ? "hard" : ""
-        } unmastered words available${selectedSource ? ` in "${selectedSource}"` : ""}.`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSourceChange = (value: string | undefined) => {
-    setSelectedSource(value);
-    shouldReloadWords.current = true; // Flag to reload words on next effect
-    
-    // Reset individual word selection when source changes
-    setSelectedWordIds([]);
-    
-    // Reset progress tracking when source changes
-    resetGameProgress();
-  };
-
-  const handleDifficultyChange = (value: string) => {
-    setSelectedDifficulty(value);
-    
-    // Reset progress tracking when difficulty changes
-    resetGameProgress();
-  };
-
-  const handleDirectionChange = (value: "german-to-english" | "english-to-german") => {
-    setDirection(value);
-  };
-
-  const handleSelectionModeChange = (value: "source" | "individual") => {
-    setSelectionMode(value);
-    
-    // Reset selected words when changing mode
-    if (value === "source") {
-      setSelectedWordIds([]);
-    }
-    
-    // Reset progress tracking when selection mode changes
-    resetGameProgress();
-  };
-
-  const toggleWordSelection = (wordId: string) => {
-    setSelectedWordIds(prev => {
-      if (prev.includes(wordId)) {
-        return prev.filter(id => id !== wordId);
-      } else {
-        return [...prev, wordId];
-      }
-    });
-  };
-
-  const handleAnswerChecked = (cardId: string, wasCorrect: boolean) => {
-    // Update word statistics and get the updated word
-    const updatedWord = updateWordStatistics(cardId, wasCorrect);
-    
-    // Update session progress
-    setAnsweredCount(prev => prev + 1);
-    
-    // Check if the word became mastered after this answer
-    if (updatedWord && updatedWord.mastered) {
-      const wasAlreadyMastered = masteredWords.includes(cardId);
-      
-      if (!wasAlreadyMastered) {
-        // Word just became mastered in this session
-        setMasteredWords(prev => [...prev, cardId]);
-        
-        // Update unmastered words list - REMOVE THE WORD IMMEDIATELY
-        setUnmasteredWords(prev => prev.filter(w => w.id !== cardId));
-        
-        toast({
-          title: "Word Mastered!",
-          description: "Great job! You've mastered this word.",
-          variant: "default",
-          duration: 2000,
-        });
-      }
-    }
-    
-    if (wasCorrect) {
-      setCorrectAnswers(prev => [...prev, cardId]);
-    } else {
-      setIncorrectAnswers(prev => [...prev, cardId]);
-    }
-    
-    // Show feedback
-    toast({
-      title: wasCorrect ? "Correct!" : "Incorrect",
-      description: wasCorrect ? "Great job!" : "Don't worry, keep practicing!",
-      variant: wasCorrect ? "default" : "destructive",
-      duration: 1500,
-    });
-
-    // Simply call selectNextUnmasteredWord to continue the game
-    // No need for additional checks that could end the game prematurely
-    selectNextUnmasteredWord();
-  };
-
-  // Renamed function for clarity and updated implementation
-  const selectNextUnmasteredWord = () => {
-    console.log("Selecting next unmastered word, remaining:", unmasteredWords.length);
-    
-    // If there are no more unmastered words, show completion message but don't end game
-    if (unmasteredWords.length === 0) {
-      console.log("No more unmastered words left");
-      return;
-    }
-    
-    // Pick a random unmastered word for better learning outcomes
-    const randomIndex = Math.floor(Math.random() * unmasteredWords.length);
-    setCurrentWordIndex(randomIndex);
-    console.log(`Selected unmastered word index ${randomIndex}`);
+  const handleEndGame = () => {
+    setGameStatus("settings");
   };
 
   const handleNextCard = () => {
     selectNextUnmasteredWord();
   };
   
-  const handleResetGame = () => {
-    // Reset all word mastery progress in localStorage
-    resetWordMasteryProgress();
-    
-    // Reload the words to get fresh state from localStorage
-    loadWords();
-    
-    // Reset progress but keep the same words
-    setCorrectAnswers([]);
-    setIncorrectAnswers([]);
-    setAnsweredCount(0);
-    
-    // Reset mastered words - all words are now unmastered
-    setMasteredWords([]);
-    
-    // Get the newly loaded words and update unmastered list
-    setUnmasteredWords([...filteredWords]);
-    
-    // Reset current index
-    setCurrentWordIndex(0);
-    
-    // Reshuffle the words
-    const shuffled = [...filteredWords].sort(() => Math.random() - 0.5);
-    setFilteredWords(shuffled);
-    
-    toast({
-      title: "Game Reset",
-      description: "Your progress has been reset for all words and cards have been reshuffled.",
-      duration: 2000,
-    });
+  const selectNextUnmasteredWord = useCallback(() => {
+    // If no unmastered words left, game is complete
+    if (unmasteredWords.length === 0) {
+      setGameStatus("complete");
+      return;
+    }
+
+    // Find the next index, starting from current + 1 or wrapping to beginning
+    let nextIndex = 0;
+    if (unmasteredWords.length > 0) {
+      nextIndex = Math.floor(Math.random() * unmasteredWords.length);
+    }
+
+    setCurrentWordIndex(nextIndex);
+  }, [unmasteredWords]);
+
+  // Handle individual word selection
+  const handleWordSelection = (id: string, selected: boolean) => {
+    if (selected) {
+      setSelectedWordIds(prev => [...prev, id]);
+    } else {
+      setSelectedWordIds(prev => prev.filter(wordId => wordId !== id));
+    }
   };
-  
-  // Reset game progress completely
-  const resetGameProgress = () => {
-    // Reset all progress tracking
-    setCorrectAnswers([]);
-    setIncorrectAnswers([]);
-    setAnsweredCount(0);
-    setMasteredWords([]);
-    setGameActive(false);
-    setShowResults(false);
-    setGameStartTime(null);
-    setGameEndTime(null);
+
+  // Load selected words when selectedWordIds changes
+  useEffect(() => {
+    if (selectionType === "individual-words" && selectedWordIds.length > 0) {
+      const words = getWordsByIds(selectedWordIds);
+      setSelectedWords(words);
+    }
+  }, [selectedWordIds, selectionType]);
+
+  const setSelectionType = (type: string) => {
+    setSettings(prev => ({ ...prev, selectionType: type }));
   };
-  
-  // Start game function
+
+  const setDifficulty = (diff: string) => {
+    setSettings(prev => ({ ...prev, difficulty: diff }));
+  };
+
+  const setSource = (src: string) => {
+    setSettings(prev => ({ ...prev, source: src }));
+  };
+
+  const setDirection = (dir: string) => {
+    setSettings(prev => ({ ...prev, direction: dir }));
+  };
+
+  const setFocusUnmastered = (focus: boolean) => {
+    setSettings(prev => ({ ...prev, focusUnmastered: focus }));
+  };
+
+  // Start the game with selected settings
   const startGame = () => {
-    if (filteredWords.length === 0) {
-      toast({
-        title: "No Words Available",
-        description: "Please select a source or difficulty that contains words.",
-        variant: "destructive",
-      });
+    if (selectionType === "individual-words" && selectedWordIds.length === 0) {
+      setShowWordSelection(true);
+      return;
+    }
+
+    // Initialize game with selected words
+    const initialWords = getInitialWords();
+    
+    if (initialWords.length === 0) {
+      setGameStatus("no-words");
       return;
     }
     
-    setGameActive(true);
-    setShowResults(false);
-    setGameStartTime(Date.now());
-    setGameEndTime(null);
+    // Filter for unmastered words if focusing on unmastered words
+    const filteredWords = focusUnmastered ? 
+      initialWords.filter(word => !word.mastered) : 
+      initialWords;
     
-    // Reset progress if restarting
-    setCorrectAnswers([]);
-    setIncorrectAnswers([]);
-    setAnsweredCount(0);
+    if (filteredWords.length === 0) {
+      setGameStatus("all-mastered");
+      return;
+    }
     
-    // Initialize mastered words based on their current state
-    const alreadyMasteredWords = filteredWords
-      .filter(word => word.mastered)
-      .map(word => word.id);
-    setMasteredWords(alreadyMasteredWords);
+    setUnmasteredWords(filteredWords);
+    setTotalWords(filteredWords.length);
     
-    // Set unmastered words - ENSURE ONLY UNMASTERED WORDS ARE INCLUDED
-    const notMastered = filteredWords.filter(word => !word.mastered);
-    setUnmasteredWords(notMastered);
-    console.log("Starting game with unmastered words:", notMastered.length);
+    // Start with a random word
+    const startIndex = Math.floor(Math.random() * filteredWords.length);
+    setCurrentWordIndex(startIndex);
     
-    // Randomize the first word to show if there are unmastered words
-    if (notMastered.length > 0) {
-      const randomIndex = Math.floor(Math.random() * notMastered.length);
-      setCurrentWordIndex(randomIndex);
-      console.log(`Initial unmastered word index: ${randomIndex}`);
+    setGameStatus("playing");
+    
+    // Reset counters
+    setCorrectAnswers(0);
+    setIncorrectAnswers(0);
+    setMasteredCount(0);
+  };
+
+  // Handle answer checked event
+  const handleAnswerChecked = (wordId: string, isCorrect: boolean) => {
+    // Update statistics for the word
+    const updatedWord = updateWordStatistics(wordId, isCorrect);
+    
+    // Update local state counters
+    if (isCorrect) {
+      setCorrectAnswers(prev => prev + 1);
     } else {
-      setCurrentWordIndex(0);
+      setIncorrectAnswers(prev => prev + 1);
     }
     
-    // Save the filtered words for this game session
-    setGameSessionWords([...filteredWords]);
-    
-    toast({
-      title: "Game Started",
-      description: `Focus on mastering ${notMastered.length} remaining words!`,
-      duration: 2000,
-    });
-    
-    // If all words are already mastered, show game completion message
-    if (notMastered.length === 0) {
-      toast({
-        title: "All Words Mastered",
-        description: "Congratulations! You've already mastered all words in this selection.",
-        duration: 2000,
-      });
-    }
-  };
-  
-  // End game function with progress reset
-  const endGame = () => {
-    setGameActive(false);
-    setShowResults(true);
-    setGameEndTime(Date.now());
-    
-    // Keep game session words for stats
-    
-    // Don't reset word mastery progress in localStorage when game ends anymore
-    // This change allows progress to persist between game sessions
-    // resetWordMasteryProgress();
-    
-    // Don't reload the words to get fresh state from localStorage anymore
-    // loadWords();
-  };
-  
-  // Calculate game statistics
-  const calculateGameStats = () => {
-    const totalCards = filteredWords.length;
-    const correctCount = correctAnswers.length;
-    const incorrectCount = incorrectAnswers.length;
-    const accuracy = totalCards > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
-    
-    let timeTaken = 0;
-    if (gameStartTime && gameEndTime) {
-      timeTaken = Math.floor((gameEndTime - gameStartTime) / 1000); // in seconds
+    // Check if word became mastered with this answer
+    if (updatedWord?.mastered && 
+        !unmasteredWords.find(w => w.id === wordId)?.mastered) {
+      setMasteredCount(prev => prev + 1);
     }
     
-    return {
-      totalCards,
-      correctCount,
-      incorrectCount,
-      accuracy,
-      timeTaken,
-    };
-  };
-  
-  // Format time in minutes and seconds
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
-  };
-  
-  // Calculate mastery progress percentage
-  const masteryProgressPercentage = filteredWords.length > 0 
-    ? Math.round((masteredWords.length * 100) / filteredWords.length) 
-    : 0;
-
-  // Get text for source display
-  const getSourceDisplayText = () => {
-    if (selectionMode === "individual") {
-      return `${selectedWordIds.length} selected words`;
+    // Update the unmasteredWords array with the updated word
+    setUnmasteredWords(prev => 
+      prev.map(word => word.id === wordId ? 
+        { ...word, 
+          mastered: updatedWord?.mastered || false,
+          timesCorrect: updatedWord?.timesCorrect || word.timesCorrect,
+          timesIncorrect: updatedWord?.timesIncorrect || word.timesIncorrect,
+          correctStreak: updatedWord?.correctStreak || 0
+        } : word
+      )
+    );
+    
+    // If focusing on unmastered and the word is now mastered, remove it
+    if (focusUnmastered && updatedWord?.mastered) {
+      setUnmasteredWords(prev => prev.filter(w => w.id !== wordId));
     }
     
-    if (selectedSource === "other") {
-      return "Words with no source";
-    }
-    
-    return selectedSource || "All words";
+    // Select next word
+    setTimeout(() => {
+      selectNextUnmasteredWord();
+    }, 500);
   };
 
+  // Toggle word selection mode
+  const toggleWordSelectionMode = () => {
+    setShowWordSelection(!showWordSelection);
+  };
+
+  // Start game with selected words
+  const startGameWithSelectedWords = () => {
+    if (selectedWordIds.length === 0) {
+      return; // Don't start if no words are selected
+    }
+    setShowWordSelection(false);
+    startGame();
+  };
+
+  // Render function
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Navbar />
-      <div className="container py-8 max-w-4xl">
-        <h1 className="text-3xl font-bold mb-8 dark:text-white">Flashcard Game</h1>
-        
-        {/* Word Selection UI - shown when not in active game */}
-        {!gameActive && !showResults && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
-              <CardHeader>
-                <CardTitle className="dark:text-white">Selection Mode</CardTitle>
-                <CardDescription className="dark:text-gray-300">How would you like to select words?</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup 
-                  value={selectionMode} 
-                  onValueChange={(value: "source" | "individual") => handleSelectionModeChange(value)} 
-                  className="flex flex-col space-y-1"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="source" id="by-source" />
-                    <Label htmlFor="by-source" className="dark:text-gray-200">By source & difficulty</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="individual" id="by-individual" />
-                    <Label htmlFor="by-individual" className="dark:text-gray-200">Select individual words</Label>
-                  </div>
-                </RadioGroup>
-                
-                {selectionMode === "individual" && (
-                  <div className="mt-4">
-                    <Button 
-                      variant="secondary" 
-                      size="sm"
-                      onClick={() => setShowWordSelector(true)}
-                      className="w-full"
-                    >
-                      Select Words ({selectedWordIds.length} selected)
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {selectionMode === "source" && (
-              <Card className="dark:bg-gray-800 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle className="dark:text-white">Source</CardTitle>
-                  <CardDescription className="dark:text-gray-300">Select vocabulary source</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Select 
-                    value={selectedSource} 
-                    onValueChange={handleSourceChange}
-                  >
-                    <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
-                      <SelectValue placeholder="All words" />
-                    </SelectTrigger>
-                    <SelectContent className="dark:bg-gray-700">
-                      <SelectItem value={undefined}>All words</SelectItem>
-                      <SelectItem value="other">No source (Other)</SelectItem>
-                      {sources.map(source => (
-                        <SelectItem key={source} value={source}>{source}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
-              <CardHeader>
-                <CardTitle className="dark:text-white">Difficulty</CardTitle>
-                <CardDescription className="dark:text-gray-300">Filter words by difficulty</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup 
-                  value={selectedDifficulty} 
-                  onValueChange={handleDifficultyChange} 
-                  className="flex flex-col space-y-1"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="all" id="all" />
-                    <Label htmlFor="all" className="dark:text-gray-200">All Difficulties ({filteredWords.length} words)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="1" id="easy" />
-                    <Label htmlFor="easy" className="dark:text-gray-200">Easy ({wordCounts.easy} words)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="2" id="medium" />
-                    <Label htmlFor="medium" className="dark:text-gray-200">Medium ({wordCounts.medium} words)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="3" id="hard" />
-                    <Label htmlFor="hard" className="dark:text-gray-200">Hard ({wordCounts.hard} words)</Label>
-                  </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
-
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
-              <CardHeader>
-                <CardTitle className="dark:text-white">Direction</CardTitle>
-                <CardDescription className="dark:text-gray-300">Choose translation direction</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup 
-                  value={direction} 
-                  onValueChange={handleDirectionChange} 
-                  className="flex flex-col space-y-1"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="german-to-english" id="german-to-english" />
-                    <Label htmlFor="german-to-english" className="dark:text-gray-200">German → English</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="english-to-german" id="english-to-german" />
-                    <Label htmlFor="english-to-german" className="dark:text-gray-200">English → German</Label>
-                  </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        
-        {/* Game Info Badge */}
-        {gameActive && (
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-2 mb-4">
-              <Badge variant="secondary" className="text-sm py-1 px-3">
-                Source: {getSourceDisplayText()}
-              </Badge>
-              <Badge variant="secondary" className="text-sm py-1 px-3">
-                {selectedDifficulty === "all" ? "All Difficulties" : 
-                  selectedDifficulty === "1" ? "Easy" : 
-                  selectedDifficulty === "2" ? "Medium" : "Hard"}
-              </Badge>
-              <Badge variant="secondary" className="text-sm py-1 px-3">
-                {direction === "german-to-english" ? "German → English" : "English → German"}
-              </Badge>
-              <Badge variant="secondary" className="text-sm py-1 px-3">
-                {filteredWords.length} Words
-              </Badge>
-            </div>
-          </div>
-        )}
-        
-        {/* Progress Tracking Section */}
-        {(gameActive || showResults) && (
-          <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg dark:text-white">Progress</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between text-sm mb-1 dark:text-gray-300">
-                  <span>Mastered: {masteredWords.length}/{filteredWords.length} words</span>
-                  <span>{masteryProgressPercentage}%</span>
-                </div>
-                <Progress value={masteryProgressPercentage} className="h-2" />
-                
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-1">
-                      <CircleCheck className="h-4 w-4 text-green-600" />
-                      <span className="text-sm dark:text-gray-200">{correctAnswers.length} correct</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <X className="h-4 w-4 text-red-600" />
-                      <span className="text-sm dark:text-gray-200">{incorrectAnswers.length} incorrect</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {/* Word Progress Dialog */}
-                    <WordProgressDialog words={filteredWords} />
-                    
-                    {gameActive && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleResetGame}
-                        className="flex items-center gap-1 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                        Reset
-                      </Button>
-                    )}
-                    {gameActive && (
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        onClick={endGame}
-                        className="flex items-center gap-1"
-                      >
-                        <Trophy className="h-3 w-3" />
-                        End Game
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Game Results Dialog */}
-        <Dialog open={showResults} onOpenChange={setShowResults}>
-          <DialogContent className="sm:max-w-md dark:bg-gray-800 dark:border-gray-700">
-            <DialogHeader>
-              <DialogTitle className="text-center text-2xl dark:text-white">Game Results</DialogTitle>
-            </DialogHeader>
-            
-            {/* Display correct and incorrect counts prominently at the top */}
-            <div className="flex justify-center gap-8 my-4">
-              <div className="flex flex-col items-center">
-                <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                  <Check className="h-5 w-5" />
-                  <span className="text-3xl font-bold">{calculateGameStats().correctCount}</span>
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Correct</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                  <X className="h-5 w-5" />
-                  <span className="text-3xl font-bold">{calculateGameStats().incorrectCount}</span>
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Incorrect</p>
-              </div>
-            </div>
-            
-            <DialogDescription className="text-center dark:text-gray-300">
-              {calculateGameStats().accuracy >= 80 ? 
-                "Great job! You've mastered these words." : 
-                calculateGameStats().accuracy >= 50 ? 
-                "Good effort! Keep practicing to improve." :
-                "Keep practicing! You'll get better with time."}
-            </DialogDescription>
-            
-            <div className="grid grid-cols-2 gap-4 my-4">
-              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
-                <p className="text-3xl font-bold dark:text-white">{calculateGameStats().accuracy}%</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Accuracy</p>
-              </div>
-              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
-                <p className="text-3xl font-bold dark:text-white">{formatTime(calculateGameStats().timeTaken)}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Time</p>
-              </div>
-            </div>
-            
-            <div className="flex justify-center gap-4 mt-4">
-              <Button
-                variant="default"
-                onClick={() => {
-                  setShowResults(false);
-                  startGame();
-                }}
+    <div className="container mx-auto py-6">
+      <h1 className="text-2xl font-bold mb-6">German Vocabulary Flashcards</h1>
+      
+      {/* Settings Panel */}
+      {gameStatus !== "playing" && (
+        <div className="space-y-4 p-4 border rounded-lg bg-white dark:bg-gray-800 shadow-sm">
+          <h2 className="text-lg font-medium">Game Settings</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Word Selection Type */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Select words by</label>
+              <Select 
+                value={selectionType} 
+                onValueChange={setSelectionType}
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Play Again
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowResults(false);
-                  // Reload the words to get fresh state after reset
-                  loadWords();
-                }}
-                className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-              >
-                Select Words
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Word Selector Dialog */}
-        <Dialog open={showWordSelector} onOpenChange={setShowWordSelector}>
-          <DialogContent className="sm:max-w-md max-h-[80vh] dark:bg-gray-800 dark:border-gray-700">
-            <DialogHeader>
-              <DialogTitle className="text-center dark:text-white">Select Words</DialogTitle>
-              <DialogDescription className="text-center dark:text-gray-300">
-                Choose individual words for your flashcard game
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm dark:text-gray-300">
-                Selected: {selectedWordIds.length} words
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setSelectedWordIds([])}
-                disabled={selectedWordIds.length === 0}
-              >
-                Clear All
-              </Button>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a selection method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all-vocabulary">All vocabulary</SelectItem>
+                  <SelectItem value="by-difficulty">By difficulty</SelectItem>
+                  <SelectItem value="by-source">By source</SelectItem>
+                  <SelectItem value="non-mastered">Non-mastered words</SelectItem>
+                  <SelectItem value="individual-words">Select individual words</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
-            <ScrollArea className="h-[300px] pr-4">
-              <div className="space-y-2">
-                {words.map(word => (
-                  <div 
-                    key={word.id}
-                    className="flex items-center space-x-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <Checkbox
-                      id={`word-${word.id}`}
-                      checked={selectedWordIds.includes(word.id)}
-                      onCheckedChange={() => toggleWordSelection(word.id)}
-                    />
-                    <div className="grid grid-cols-2 gap-4 w-full">
-                      <Label htmlFor={`word-${word.id}`} className="dark:text-gray-200">
-                        {word.german}
-                      </Label>
-                      <Label htmlFor={`word-${word.id}`} className="text-gray-600 dark:text-gray-400">
-                        {word.english}
-                      </Label>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-            
-            <div className="flex justify-end gap-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowWordSelector(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => setShowWordSelector(false)}
-                disabled={selectedWordIds.length === 0}
-              >
-                Confirm Selection
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Start Game Button (when not in game) */}
-        {!gameActive && !showResults && (
-          <div className="flex justify-center mb-8">
-            <Button 
-              onClick={startGame} 
-              size="lg" 
-              className="px-8 py-6 text-lg font-medium"
-              disabled={filteredWords.length === 0 || (selectionMode === "individual" && selectedWordIds.length === 0)}
-            >
-              <Play className="mr-2 h-5 w-5" />
-              Start Game
-            </Button>
-          </div>
-        )}
-        
-        {/* Flashcard Component (shown during active game) */}
-        {gameActive && unmasteredWords.length > 0 && (
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
+            {/* Difficulty Selector */}
+            {(selectionType === "by-difficulty" || (selectionType === "non-mastered" && difficulty !== "0")) && (
               <div>
-                <h2 className="text-xl font-semibold dark:text-white">
-                  {direction === "german-to-english" ? "German → English" : "English → German"}
-                </h2>
-                <p className="text-sm text-muted-foreground dark:text-gray-400">
-                  {answeredCount} cards answered - {unmasteredWords.length} words remaining
-                </p>
+                <label className="block text-sm font-medium mb-1">Difficulty</label>
+                <Select value={difficulty} onValueChange={setDifficulty}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select difficulty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Easy</SelectItem>
+                    <SelectItem value="2">Medium</SelectItem>
+                    <SelectItem value="3">Hard</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Source Selector */}
+            {selectionType === "by-source" && sources.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Source</label>
+                <Select value={source || ""} onValueChange={setSource}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sources.map(src => (
+                      <SelectItem key={src} value={src}>{src}</SelectItem>
+                    ))}
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Individual words selection button */}
+            {selectionType === "individual-words" && (
+              <div className="md:col-span-2">
+                <div className="flex flex-col space-y-2">
+                  <Button onClick={toggleWordSelectionMode} className="mt-2">
+                    {showWordSelection ? "Hide word selection" : "Select words"} 
+                    ({selectedWordIds.length} selected)
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* Direction Selector */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Direction</label>
+              <Select value={direction} onValueChange={setDirection}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select direction" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="german-to-english">German → English</SelectItem>
+                  <SelectItem value="english-to-german">English → German</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Focus on Unmastered */}
+            <div className="flex items-center space-x-2 md:col-span-2">
+              <Checkbox 
+                id="focus-unmastered" 
+                checked={focusUnmastered}
+                onCheckedChange={(checked) => setFocusUnmastered(checked === true)}
+              />
+              <label 
+                htmlFor="focus-unmastered"
+                className="text-sm cursor-pointer"
+              >
+                Focus on unmastered words (remove mastered words during play)
+              </label>
+            </div>
+          </div>
+          
+          {/* Word Selection List */}
+          {selectionType === "individual-words" && showWordSelection && (
+            <div className="mt-4 border p-4 rounded-lg">
+              <h3 className="text-lg font-medium mb-2">Select words for your game</h3>
+              <VocabularyList
+                isSelectable={true}
+                selectedWordIds={selectedWordIds}
+                onWordSelect={handleWordSelection}
+                onApproveWord={() => {}} // Not used in this context
+                onDeleteWord={() => {}} // Not used in this context
+                onEditWord={() => {}} // Not used in this context
+              />
+              
+              <div className="mt-4 flex justify-end">
+                <Button 
+                  onClick={startGameWithSelectedWords}
+                  disabled={selectedWordIds.length === 0}
+                >
+                  Start Game with Selected Words ({selectedWordIds.length})
+                </Button>
               </div>
             </div>
-
+          )}
+          
+          {/* Start Game Button */}
+          <div className="mt-4 flex justify-center">
+            {selectionType !== "individual-words" || !showWordSelection ? (
+              <Button 
+                onClick={startGame} 
+                size="lg" 
+                className="px-8"
+              >
+                Start Game
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      )}
+      
+      {/* Game Status Messages */}
+      {gameStatus === "no-words" && (
+        <div className="text-center p-6 bg-amber-50 border border-amber-200 rounded-lg mt-4">
+          <h3 className="text-lg font-medium text-amber-700">No words available</h3>
+          <p className="text-amber-600 mt-2">
+            There are no words available with the selected criteria. Please change your selection.
+          </p>
+        </div>
+      )}
+      
+      {gameStatus === "all-mastered" && (
+        <div className="text-center p-6 bg-green-50 border border-green-200 rounded-lg mt-4">
+          <h3 className="text-lg font-medium text-green-700">All words mastered!</h3>
+          <p className="text-green-600 mt-2">
+            You have mastered all the words in this selection. Try a different set of words or reset mastery progress.
+          </p>
+          <div className="mt-4">
+            <WordProgressDialog />
+          </div>
+        </div>
+      )}
+      
+      {/* Game Play UI */}
+      {gameStatus === "playing" && (
+        <div className="space-y-6">
+          {/* Game Stats */}
+          <div className="flex flex-col md:flex-row justify-between p-4 bg-white dark:bg-gray-800 border rounded-lg shadow-sm">
+            <div className="flex space-x-4 mb-4 md:mb-0">
+              <div className="flex items-center">
+                <Check className="h-5 w-5 text-green-500 mr-1" />
+                <span>{correctAnswers} correct</span>
+              </div>
+              
+              <div className="flex items-center">
+                <X className="h-5 w-5 text-red-500 mr-1" />
+                <span>{incorrectAnswers} incorrect</span>
+              </div>
+              
+              <div className="flex items-center">
+                <ArrowRight className="h-5 w-5 text-blue-500 mr-1" />
+                <span>Mastered: {masteredCount}/{totalWords} words</span>
+              </div>
+            </div>
+            
+            <div>
+              <Button 
+                variant="outline"
+                onClick={handleEndGame}
+              >
+                End Game
+              </Button>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="p-4 bg-white dark:bg-gray-800 border rounded-lg shadow-sm">
+            <div className="mb-2 flex justify-between text-sm">
+              <span>Progress</span>
+              <span>{Math.round((masteredCount / totalWords) * 100)}%</span>
+            </div>
+            
+            <Progress 
+              value={(masteredCount / totalWords) * 100}
+              className="h-2"
+            />
+          </div>
+          
+          {/* Flashcard */}
+          <div className="flex justify-center">
             {/* Make sure currentWordIndex is valid before rendering FlashcardComponent */}
             {currentWordIndex >= 0 && currentWordIndex < unmasteredWords.length ? (
               <FlashcardComponent
@@ -846,53 +488,28 @@ const FlashcardGame = () => {
               </div>
             )}
           </div>
-        )}
-        
-        {/* No Words Available Message */}
-        {!gameActive && !showResults && filteredWords.length === 0 && selectionMode !== "individual" && (
-          <Card className="mb-8 dark:bg-gray-800 dark:border-gray-700">
-            <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4 dark:text-gray-300">
-                  No flashcards available with your current selection. 
-                  Try selecting a different difficulty or source, or add more vocabulary words.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* No Words Selected Message */}
-        {!gameActive && !showResults && selectionMode === "individual" && selectedWordIds.length === 0 && (
-          <Card className="mb-8 dark:bg-gray-800 dark:border-gray-700">
-            <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4 dark:text-gray-300">
-                  Please select individual words to start the game.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Game Complete Message - shown when all words are mastered but game is still active */}
-        {gameActive && unmasteredWords.length === 0 && (
-          <Card className="mb-8 dark:bg-gray-800 dark:border-gray-700">
-            <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <Trophy className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold mb-2 dark:text-white">All Words Mastered!</h3>
-                <p className="text-muted-foreground mb-6 dark:text-gray-300">
-                  Congratulations! You've mastered all the words in this session.
-                </p>
-                <Button onClick={endGame} size="lg" variant="default">
-                  End Game & See Results
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+        </div>
+      )}
+      
+      {/* Game Complete UI */}
+      {gameStatus === "complete" && (
+        <div className="text-center p-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900 rounded-lg mt-4">
+          <h3 className="text-xl font-bold text-green-700 dark:text-green-400">Game Complete!</h3>
+          <div className="mt-4 space-y-2">
+            <p><span className="font-medium">Correct answers:</span> {correctAnswers}</p>
+            <p><span className="font-medium">Incorrect answers:</span> {incorrectAnswers}</p>
+            <p><span className="font-medium">Words mastered:</span> {masteredCount} out of {totalWords}</p>
+          </div>
+          <div className="mt-6 space-x-3">
+            <Button onClick={() => setGameStatus("settings")}>
+              New Game
+            </Button>
+            <Button variant="outline" onClick={handleEndGame}>
+              Return to Settings
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
