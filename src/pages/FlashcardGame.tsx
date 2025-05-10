@@ -263,10 +263,11 @@ const FlashcardGame = () => {
     if (unmasteredWords.length <= 1) {
       // This was the last word and it was just mastered
       if (updatedWord && updatedWord.mastered) {
-        // End the game if all words are mastered
-        endGame();
+        // Don't end game yet - just show completion message
+        // User needs to manually end when they're ready
+        return;
       } else {
-        // The current word was the last unmastered one
+        // The current word was the last unmastered one but not yet mastered
         handleNextUnmasteredCard();
       }
       return;
@@ -277,6 +278,8 @@ const FlashcardGame = () => {
   };
 
   const handleNextUnmasteredCard = () => {
+    console.log("handleNextUnmasteredCard called, unmastered words:", unmasteredWords.length);
+    
     // If there are no more unmastered words, show completion message
     if (unmasteredWords.length === 0) {
       // Don't end game automatically - let user see completion message
@@ -382,6 +385,7 @@ const FlashcardGame = () => {
     // Set unmastered words - ENSURE ONLY UNMASTERED WORDS ARE INCLUDED
     const notMastered = filteredWords.filter(word => !word.mastered);
     setUnmasteredWords(notMastered);
+    console.log("Starting game with unmastered words:", notMastered.length);
     
     // If there are unmastered words, set the current index to the first one
     // Otherwise, keep the current index (game will end immediately)
@@ -400,14 +404,15 @@ const FlashcardGame = () => {
       duration: 2000,
     });
     
-    // If all words are already mastered, end game immediately
+    // If all words are already mastered, show game completion message
     if (notMastered.length === 0) {
       toast({
         title: "All Words Mastered",
         description: "Congratulations! You've already mastered all words in this selection.",
         duration: 2000,
       });
-      endGame();
+      // Don't end game automatically - display the complete message
+      // and let the user choose to end the game
     }
   };
   
@@ -417,13 +422,14 @@ const FlashcardGame = () => {
     setShowResults(true);
     setGameEndTime(Date.now());
     
-    // Reset word mastery progress in localStorage when game ends
-    resetWordMasteryProgress();
-    
-    // Reload the words to get fresh state from localStorage
-    loadWords();
-    
     // Keep game session words for stats
+    
+    // Don't reset word mastery progress in localStorage when game ends anymore
+    // This change allows progress to persist between game sessions
+    // resetWordMasteryProgress();
+    
+    // Don't reload the words to get fresh state from localStorage anymore
+    // loadWords();
   };
   
   // Calculate game statistics
