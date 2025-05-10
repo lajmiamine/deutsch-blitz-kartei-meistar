@@ -1,3 +1,4 @@
+
 import { useState, useEffect, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,7 +81,7 @@ const FlashcardComponent = ({
     } else {
       setFeedback("incorrect");
       onIncorrect(word.id);
-      setShowExplanation(true); // Only show explanation for incorrect answers
+      setShowExplanation(true); // Show explanation for incorrect answers
     }
     
     setIsFlipped(true);
@@ -307,11 +308,14 @@ const FlashcardComponent = ({
                 <p className="font-medium text-lg">
                   {feedback === "correct" ? "Correct!" : "Incorrect!"}
                 </p>
-                {/* Show user's answer for incorrect answers */}
+                {/* Improved display for incorrect answers */}
                 {showExplanation && feedback === "incorrect" && (
-                  <div className="mt-2">
-                    <p className="text-sm">
-                      Your answer: {userAnswer || "(empty)"}
+                  <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                    <p className="text-sm mb-1 font-medium">
+                      Your answer: <span className="font-normal">{userAnswer || "(empty)"}</span>
+                    </p>
+                    <p className="text-sm font-medium">
+                      Correct answer: <span className="font-normal">{correctAnswer}</span>
                     </p>
                   </div>
                 )}
@@ -323,12 +327,22 @@ const FlashcardComponent = ({
               {wordProgressDisplay}
             </div>
             
-            <Button 
-              onClick={onSkip}
-              className="dark:bg-primary dark:text-primary-foreground"
-            >
-              Next Word
-            </Button>
+            {/* Button changes depending on if answer was incorrect */}
+            {feedback === "incorrect" ? (
+              <Button 
+                onClick={onSkip}
+                className="dark:bg-primary dark:text-primary-foreground"
+              >
+                Got it, Next Word
+              </Button>
+            ) : (
+              <Button 
+                onClick={onSkip}
+                className="dark:bg-primary dark:text-primary-foreground"
+              >
+                Next Word
+              </Button>
+            )}
           </div>
         </Card>
       </div>
