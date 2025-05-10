@@ -42,6 +42,20 @@ export const extractVocabularyFromText = async (file: File, sourceLanguage: stri
   });
 };
 
+/**
+ * Convert string to camel case
+ * Example: "APPLE PIE" becomes "applePie"
+ */
+const toCamelCase = (str: string): string => {
+  return str.toLowerCase()
+    .split(/[\s-_]+/)
+    .map((word, index) => {
+      // First word stays lowercase, the rest get capitalized
+      return index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join('');
+};
+
 // XML parser for vocabulary words
 const parseXmlVocabulary = (xmlContent: string): Array<ParsedWord> => {
   const parsedWords: ParsedWord[] = [];
@@ -66,9 +80,12 @@ const parseXmlVocabulary = (xmlContent: string): Array<ParsedWord> => {
         const english = englishMatch[1].trim();
         
         if (german && english) {
+          // Apply camel casing to the English translation
+          const camelCasedEnglish = toCamelCase(english);
+          
           parsedWords.push({
             german,
-            english
+            english: camelCasedEnglish
           });
         }
       }
