@@ -421,6 +421,31 @@ const FlashcardGame = () => {
     setCustomWordCount(e.target.value);
   };
 
+  // Add the missing handleRemoveWord function
+  const handleRemoveWord = (wordId: string) => {
+    // Delete the word from vocabulary
+    deleteVocabularyWord(wordId);
+    
+    // Remove the word from our current game state
+    setWords(prev => prev.filter(w => w.id !== wordId));
+    setAllWords(prev => prev.filter(w => w.id !== wordId));
+    
+    // Update related states
+    setWrongWords(prev => prev.filter(w => w.id !== wordId));
+    
+    // Show a notification
+    toast({
+      title: "Word Removed",
+      description: "The word has been removed from your vocabulary.",
+      duration: 3000,
+    });
+    
+    // Move to the next word if we removed the current one
+    if (words.length > 0 && words[currentWordIndex].id === wordId) {
+      goToNextWord();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
