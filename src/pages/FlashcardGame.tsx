@@ -13,7 +13,8 @@ import {
   VocabularyWord, 
   getApprovedVocabulary,
   updateWordStatistics,
-  getVocabularyByDifficulty
+  getVocabularyByDifficulty,
+  deleteVocabularyWord
 } from "@/utils/vocabularyService";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -319,6 +320,38 @@ const FlashcardGame = () => {
       description: "All progress has been reset.",
       duration: 3000,
     });
+  };
+
+  // New function to handle word removal
+  const handleRemoveWord = (wordId: string) => {
+    // Remove the word from the vocabulary service
+    deleteVocabularyWord(wordId);
+    
+    // Remove from current game lists
+    setWords(prev => prev.filter(word => word.id !== wordId));
+    setAllWords(prev => prev.filter(word => word.id !== wordId));
+    setWrongWords(prev => prev.filter(word => word.id !== wordId));
+    
+    // Notify the user
+    toast({
+      title: "Word Removed",
+      description: "The word has been removed from your vocabulary.",
+      duration: 2000,
+    });
+    
+    // If this was the last word, end the game
+    if (words.length <= 1) {
+      toast({
+        title: "Game Over",
+        description: "No more words to practice.",
+        duration: 3000,
+      });
+      setGameStarted(false);
+      return;
+    }
+    
+    // Otherwise, go to next word
+    goToNextWord();
   };
 
   const toggleWrongWords = () => {
@@ -677,6 +710,7 @@ const FlashcardGame = () => {
                 onCorrect={handleCorrectAnswer} 
                 onIncorrect={handleIncorrectAnswer} 
                 onSkip={handleSkip}
+                onRemove={handleRemoveWord}
                 direction={direction}
               />
             ) : (

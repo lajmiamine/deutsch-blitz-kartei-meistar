@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { VocabularyWord } from "@/utils/vocabularyService";
+import { Trash2 } from "lucide-react";
 
 interface FlashcardComponentProps {
   word: VocabularyWord;
   onCorrect: (wordId: string) => void;
   onIncorrect: (wordId: string) => void;
   onSkip: () => void;
+  onRemove: (wordId: string) => void;
   direction: "german-to-english" | "english-to-german";
 }
 
@@ -18,6 +20,7 @@ const FlashcardComponent = ({
   onCorrect, 
   onIncorrect, 
   onSkip,
+  onRemove,
   direction
 }: FlashcardComponentProps) => {
   const [userAnswer, setUserAnswer] = useState("");
@@ -72,21 +75,38 @@ const FlashcardComponent = ({
     setHint(newHint);
   };
 
+  const handleRemoveWord = () => {
+    if (confirm(`Are you sure you want to remove "${word.german}" from your vocabulary?`)) {
+      onRemove(word.id);
+    }
+  };
+
   return (
     <div className={`flashcard w-full max-w-md mx-auto ${isFlipped ? "flipped" : ""}`}>
       <div className="flashcard-inner">
         <Card className="flashcard-front border-2 p-6 shadow-lg">
           <div className="flex flex-col items-center space-y-8">
-            <div className="space-y-2 text-center">
-              <h3 className="text-2xl font-bold text-german-black">
-                {promptWord}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {direction === "german-to-english" ? "Translate to English" : "Translate to German"}
-              </p>
-              {hint && (
-                <p className="text-sm text-muted-foreground">Hint: {hint}</p>
-              )}
+            <div className="flex justify-between w-full">
+              <div className="space-y-2 text-center flex-1">
+                <h3 className="text-2xl font-bold text-german-black">
+                  {promptWord}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {direction === "german-to-english" ? "Translate to English" : "Translate to German"}
+                </p>
+                {hint && (
+                  <p className="text-sm text-muted-foreground">Hint: {hint}</p>
+                )}
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-red-500 hover:text-red-700" 
+                onClick={handleRemoveWord}
+                title="Remove this word from your vocabulary"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
             
             <div className="w-full space-y-4">
@@ -114,11 +134,22 @@ const FlashcardComponent = ({
           }`}
         >
           <div className="flex flex-col items-center space-y-6">
-            <div className="space-y-1 text-center">
-              <p className="text-sm text-muted-foreground">
-                {direction === "german-to-english" ? "The German word" : "The English word"}
-              </p>
-              <h3 className="text-2xl font-bold">{promptWord}</h3>
+            <div className="w-full flex justify-between">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  {direction === "german-to-english" ? "The German word" : "The English word"}
+                </p>
+                <h3 className="text-2xl font-bold">{promptWord}</h3>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-red-500 hover:text-red-700" 
+                onClick={handleRemoveWord}
+                title="Remove this word from your vocabulary"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
             
             <div className="space-y-1 text-center">
