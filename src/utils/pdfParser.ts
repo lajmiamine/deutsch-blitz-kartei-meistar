@@ -152,7 +152,7 @@ const isLikelyGermanWord = (word: string): boolean => {
 
 // Mock translation function (in a real app, you'd use a dictionary or API)
 const mockTranslate = (germanWord: string): string => {
-  // Expanded German-English dictionary
+  // Expanded German-English dictionary with removed duplicates
   const commonWords: Record<string, string> = {
     "Haus": "house",
     "Katze": "cat",
@@ -175,7 +175,6 @@ const mockTranslate = (germanWord: string): string => {
     "Stadt": "city",
     "Land": "country",
     "Straße": "street",
-    "Haus": "house",
     "Zeit": "time",
     "Jahr": "year",
     "Tag": "day",
@@ -196,7 +195,6 @@ const mockTranslate = (germanWord: string): string => {
     "Liebe": "love",
     "Musik": "music",
     "Film": "movie",
-    "Buch": "book",
     "Spiel": "game",
     "Sport": "sport",
     "Ball": "ball",
