@@ -1,3 +1,4 @@
+
 import { useState, useEffect, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,6 +136,32 @@ const FlashcardComponent = ({
     </div>
   ) : null;
 
+  // Show word progress statistics
+  const wordProgressStats = (
+    <div className="text-xs space-y-1 mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+      <div className="flex justify-between">
+        <span>Correct answers:</span>
+        <span className="font-medium text-green-600 dark:text-green-400">{word.timesCorrect || 0}</span>
+      </div>
+      <div className="flex justify-between">
+        <span>Incorrect answers:</span>
+        <span className="font-medium text-red-600 dark:text-red-400">{word.timesIncorrect || 0}</span>
+      </div>
+      <div className="flex justify-between">
+        <span>Current streak:</span>
+        <span className="font-medium">{word.correctStreak || 0}</span>
+      </div>
+      <div className="flex justify-between">
+        <span>Status:</span>
+        <span className="font-medium">
+          {word.mastered ? 
+            <span className="text-green-600 dark:text-green-400">Mastered</span> : 
+            "Learning"}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <div className={`flashcard w-full max-w-md mx-auto ${isFlipped ? "flipped" : ""}`}>
       <div className="flashcard-inner">
@@ -268,6 +295,9 @@ const FlashcardComponent = ({
                 )}
               </div>
             )}
+            
+            {/* Word progress statistics */}
+            {wordProgressStats}
             
             <Button 
               onClick={onSkip}
