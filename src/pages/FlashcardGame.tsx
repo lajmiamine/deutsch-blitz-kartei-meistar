@@ -17,8 +17,16 @@ import {
   getApprovedVocabularyBySource,
   getWordCountByDifficulty
 } from "@/utils/vocabularyService";
-import { CircleCheck, X, RefreshCw, ArrowRight } from "lucide-react";
+import { CircleCheck, X, RefreshCw, ArrowRight, Play, Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const FlashcardGame = () => {
   const { toast } = useToast();
@@ -39,6 +47,12 @@ const FlashcardGame = () => {
   const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
   const [incorrectAnswers, setIncorrectAnswers] = useState<string[]>([]);
   const [answeredCount, setAnsweredCount] = useState<number>(0);
+  
+  // Game state
+  const [gameActive, setGameActive] = useState<boolean>(false);
+  const [showResults, setShowResults] = useState<boolean>(false);
+  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
+  const [gameEndTime, setGameEndTime] = useState<number | null>(null);
   
   // Create a ref to track when we need to reload words after source/difficulty changes
   const shouldReloadWords = useRef(false);
@@ -130,18 +144,14 @@ const FlashcardGame = () => {
     shouldReloadWords.current = true; // Flag to reload words on next effect
     
     // Reset progress tracking when source changes
-    setCorrectAnswers([]);
-    setIncorrectAnswers([]);
-    setAnsweredCount(0);
+    resetGameProgress();
   };
 
   const handleDifficultyChange = (value: string) => {
     setSelectedDifficulty(value);
     
     // Reset progress tracking when difficulty changes
-    setCorrectAnswers([]);
-    setIncorrectAnswers([]);
-    setAnsweredCount(0);
+    resetGameProgress();
   };
 
   const handleDirectionChange = (value: "german-to-english" | "english-to-german") => {
@@ -168,6 +178,11 @@ const FlashcardGame = () => {
       variant: wasCorrect ? "default" : "destructive",
       duration: 1500,
     });
+
+    // Check if all words have been answered
+    if (answeredCount + 1 === filteredWords.length) {
+      endGame();
+    }
   };
 
   const handleNextCard = () => {
@@ -185,10 +200,7 @@ const FlashcardGame = () => {
   };
   
   const handleResetGame = () => {
-    // Reset all progress tracking
-    setCorrectAnswers([]);
-    setIncorrectAnswers([]);
-    setAnsweredCount(0);
+    resetGameProgress();
     
     // Reset to first card and reshuffle
     setCurrentWordIndex(0);
@@ -201,10 +213,90 @@ const FlashcardGame = () => {
     });
   };
   
+  const resetGameProgress = () => {
+    // Reset all progress tracking
+    setCorrectAnswers([]);
+    setIncorrectAnswers([]);
+    setAnsweredCount(0);
+    setGameActive(false);
+    setShowResults(false);
+    setGameStartTime(null);
+    setGameEndTime(null);
+  };
+  
+  // Start game function
+  const startGame = () => {
+    if (filteredWords.length === 0) {
+      toast({
+        title: "No Words Available",
+        description: "Please select a source or difficulty that contains words.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setGameActive(true);
+    setShowResults(false);
+    setGameStartTime(Date.now());
+    setGameEndTime(null);
+    
+    // Reset progress if restarting
+    setCorrectAnswers([]);
+    setIncorrectAnswers([]);
+    setAnsweredCount(0);
+    setCurrentWordIndex(0);
+    
+    toast({
+      title: "Game Started",
+      description: `Good luck with your ${filteredWords.length} flashcards!`,
+      duration: 2000,
+    });
+  };
+  
+  // End game function
+  const endGame = () => {
+    setGameActive(false);
+    setShowResults(true);
+    setGameEndTime(Date.now());
+  };
+  
+  // Calculate game statistics
+  const calculateGameStats = () => {
+    const totalCards = filteredWords.length;
+    const correctCount = correctAnswers.length;
+    const incorrectCount = incorrectAnswers.length;
+    const accuracy = totalCards > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
+    
+    let timeTaken = 0;
+    if (gameStartTime && gameEndTime) {
+      timeTaken = Math.floor((gameEndTime - gameStartTime) / 1000); // in seconds
+    }
+    
+    return {
+      totalCards,
+      correctCount,
+      incorrectCount,
+      accuracy,
+      timeTaken,
+    };
+  };
+  
+  // Format time in minutes and seconds
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+  
   // Calculate progress percentage
   const progressPercentage = filteredWords.length > 0 
     ? Math.round((answeredCount * 100) / filteredWords.length) 
     : 0;
+
+  // Get text for source display
+  const getSourceDisplayText = () => {
+    return selectedSource || "All words";
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -212,124 +304,236 @@ const FlashcardGame = () => {
       <div className="container py-8 max-w-4xl">
         <h1 className="text-3xl font-bold mb-8 dark:text-white">Flashcard Game</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="dark:text-white">Source</CardTitle>
-              <CardDescription className="dark:text-gray-300">Select vocabulary source</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Select 
-                value={selectedSource} 
-                onValueChange={handleSourceChange}
-              >
-                <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
-                  <SelectValue placeholder="All words" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-gray-700">
-                  <SelectItem value={undefined}>All words</SelectItem>
-                  {sources.map(source => (
-                    <SelectItem key={source} value={source}>{source}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
+        {!gameActive && !showResults && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="dark:text-white">Source</CardTitle>
+                <CardDescription className="dark:text-gray-300">Select vocabulary source</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Select 
+                  value={selectedSource} 
+                  onValueChange={handleSourceChange}
+                >
+                  <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                    <SelectValue placeholder="All words" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-gray-700">
+                    <SelectItem value={undefined}>All words</SelectItem>
+                    {sources.map(source => (
+                      <SelectItem key={source} value={source}>{source}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
 
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="dark:text-white">Difficulty</CardTitle>
-              <CardDescription className="dark:text-gray-300">Filter words by difficulty</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup 
-                value={selectedDifficulty} 
-                onValueChange={handleDifficultyChange} 
-                className="flex flex-col space-y-1"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="all" id="all" />
-                  <Label htmlFor="all" className="dark:text-gray-200">All Difficulties ({filteredWords.length} words)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="1" id="easy" />
-                  <Label htmlFor="easy" className="dark:text-gray-200">Easy ({wordCounts.easy} words)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="2" id="medium" />
-                  <Label htmlFor="medium" className="dark:text-gray-200">Medium ({wordCounts.medium} words)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="3" id="hard" />
-                  <Label htmlFor="hard" className="dark:text-gray-200">Hard ({wordCounts.hard} words)</Label>
-                </div>
-              </RadioGroup>
-            </CardContent>
-          </Card>
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="dark:text-white">Difficulty</CardTitle>
+                <CardDescription className="dark:text-gray-300">Filter words by difficulty</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup 
+                  value={selectedDifficulty} 
+                  onValueChange={handleDifficultyChange} 
+                  className="flex flex-col space-y-1"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="all" id="all" />
+                    <Label htmlFor="all" className="dark:text-gray-200">All Difficulties ({filteredWords.length} words)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="1" id="easy" />
+                    <Label htmlFor="easy" className="dark:text-gray-200">Easy ({wordCounts.easy} words)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="2" id="medium" />
+                    <Label htmlFor="medium" className="dark:text-gray-200">Medium ({wordCounts.medium} words)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="3" id="hard" />
+                    <Label htmlFor="hard" className="dark:text-gray-200">Hard ({wordCounts.hard} words)</Label>
+                  </div>
+                </RadioGroup>
+              </CardContent>
+            </Card>
 
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="dark:text-white">Direction</CardTitle>
-              <CardDescription className="dark:text-gray-300">Choose translation direction</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup 
-                value={direction} 
-                onValueChange={handleDirectionChange} 
-                className="flex flex-col space-y-1"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="german-to-english" id="german-to-english" />
-                  <Label htmlFor="german-to-english" className="dark:text-gray-200">German → English</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="english-to-german" id="english-to-german" />
-                  <Label htmlFor="english-to-german" className="dark:text-gray-200">English → German</Label>
-                </div>
-              </RadioGroup>
-            </CardContent>
-          </Card>
-        </div>
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="dark:text-white">Direction</CardTitle>
+                <CardDescription className="dark:text-gray-300">Choose translation direction</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup 
+                  value={direction} 
+                  onValueChange={handleDirectionChange} 
+                  className="flex flex-col space-y-1"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="german-to-english" id="german-to-english" />
+                    <Label htmlFor="german-to-english" className="dark:text-gray-200">German → English</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="english-to-german" id="english-to-german" />
+                    <Label htmlFor="english-to-german" className="dark:text-gray-200">English → German</Label>
+                  </div>
+                </RadioGroup>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        {/* Game Info Badge */}
+        {gameActive && (
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Badge variant="secondary" className="text-sm py-1 px-3">
+                Source: {getSourceDisplayText()}
+              </Badge>
+              <Badge variant="secondary" className="text-sm py-1 px-3">
+                {selectedDifficulty === "all" ? "All Difficulties" : 
+                  selectedDifficulty === "1" ? "Easy" : 
+                  selectedDifficulty === "2" ? "Medium" : "Hard"}
+              </Badge>
+              <Badge variant="secondary" className="text-sm py-1 px-3">
+                {direction === "german-to-english" ? "German → English" : "English → German"}
+              </Badge>
+              <Badge variant="secondary" className="text-sm py-1 px-3">
+                {filteredWords.length} Words
+              </Badge>
+            </div>
+          </div>
+        )}
         
         {/* Progress Tracking Section */}
-        <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg dark:text-white">Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between text-sm mb-1 dark:text-gray-300">
-                <span>Completed: {answeredCount}/{filteredWords.length} words</span>
-                <span>{progressPercentage}%</span>
-              </div>
-              <Progress value={progressPercentage} className="h-2" />
-              
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-1">
-                    <CircleCheck className="h-4 w-4 text-green-600" />
-                    <span className="text-sm dark:text-gray-200">{correctAnswers.length} correct</span>
+        {(gameActive || showResults) && (
+          <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg dark:text-white">Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between text-sm mb-1 dark:text-gray-300">
+                  <span>Completed: {answeredCount}/{filteredWords.length} words</span>
+                  <span>{progressPercentage}%</span>
+                </div>
+                <Progress value={progressPercentage} className="h-2" />
+                
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-1">
+                      <CircleCheck className="h-4 w-4 text-green-600" />
+                      <span className="text-sm dark:text-gray-200">{correctAnswers.length} correct</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <X className="h-4 w-4 text-red-600" />
+                      <span className="text-sm dark:text-gray-200">{incorrectAnswers.length} incorrect</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <X className="h-4 w-4 text-red-600" />
-                    <span className="text-sm dark:text-gray-200">{incorrectAnswers.length} incorrect</span>
+                  <div className="flex gap-2">
+                    {gameActive && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleResetGame}
+                        className="flex items-center gap-1 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Reset
+                      </Button>
+                    )}
+                    {gameActive && (
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={endGame}
+                        className="flex items-center gap-1"
+                      >
+                        <Trophy className="h-3 w-3" />
+                        End Game
+                      </Button>
+                    )}
                   </div>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleResetGame}
-                  className="flex items-center gap-1 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                >
-                  <RefreshCw className="h-3 w-3 mr-1" />
-                  Reset Game
-                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Game Results Dialog */}
+        <Dialog open={showResults} onOpenChange={setShowResults}>
+          <DialogContent className="sm:max-w-md dark:bg-gray-800 dark:border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-center text-2xl dark:text-white">Game Results</DialogTitle>
+              <DialogDescription className="text-center dark:text-gray-300">
+                {calculateGameStats().accuracy >= 80 ? 
+                  "Great job! You've mastered these words." : 
+                  calculateGameStats().accuracy >= 50 ? 
+                  "Good effort! Keep practicing to improve." :
+                  "Keep practicing! You'll get better with time."}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-2 gap-4 my-4">
+              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
+                <p className="text-3xl font-bold dark:text-white">{calculateGameStats().accuracy}%</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Accuracy</p>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
+                <p className="text-3xl font-bold dark:text-white">{formatTime(calculateGameStats().timeTaken)}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Time</p>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
+                <p className="text-3xl font-bold text-green-600 dark:text-green-400">{calculateGameStats().correctCount}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Correct</p>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-center">
+                <p className="text-3xl font-bold text-red-600 dark:text-red-400">{calculateGameStats().incorrectCount}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Incorrect</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+            
+            <div className="flex justify-center gap-4 mt-4">
+              <Button
+                variant="default"
+                onClick={() => {
+                  setShowResults(false);
+                  startGame();
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Play Again
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowResults(false)}
+                className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+              >
+                Select Words
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         
-        {filteredWords.length > 0 ? (
+        {/* Start Game Button (when not in game) */}
+        {!gameActive && !showResults && (
+          <div className="flex justify-center mb-8">
+            <Button 
+              onClick={startGame} 
+              size="lg" 
+              className="px-8 py-6 text-lg font-medium"
+              disabled={filteredWords.length === 0}
+            >
+              <Play className="mr-2 h-5 w-5" />
+              Start Game
+            </Button>
+          </div>
+        )}
+        
+        {/* Flashcard Component (shown during active game) */}
+        {gameActive && filteredWords.length > 0 && (
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <div>
@@ -338,11 +542,6 @@ const FlashcardGame = () => {
                 </h2>
                 <p className="text-sm text-muted-foreground dark:text-gray-400">
                   Card {currentWordIndex + 1} of {filteredWords.length}
-                  {selectedSource ? ` from "${selectedSource}"` : ""}
-                  {selectedDifficulty !== "all" ? ` (${
-                    selectedDifficulty === "1" ? "Easy" : 
-                    selectedDifficulty === "2" ? "Medium" : "Hard"
-                  } words)` : ""}
                 </p>
               </div>
             </div>
@@ -355,7 +554,10 @@ const FlashcardGame = () => {
               onSkip={handleNextCard}
             />
           </div>
-        ) : (
+        )}
+        
+        {/* No Words Available Message */}
+        {!gameActive && !showResults && filteredWords.length === 0 && (
           <Card className="mb-8 dark:bg-gray-800 dark:border-gray-700">
             <CardContent className="pt-6">
               <div className="text-center py-8">
