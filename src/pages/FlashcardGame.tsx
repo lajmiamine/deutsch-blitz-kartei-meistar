@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +48,7 @@ const FlashcardGame = () => {
   const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
   const [incorrectAnswers, setIncorrectAnswers] = useState<string[]>([]);
   const [answeredCount, setAnsweredCount] = useState<number>(0);
+  const [gameSessionWords, setGameSessionWords] = useState<VocabularyWord[]>([]);
   
   // Game state
   const [gameActive, setGameActive] = useState<boolean>(false);
@@ -248,6 +248,9 @@ const FlashcardGame = () => {
     setAnsweredCount(0);
     setCurrentWordIndex(0);
     
+    // Save the filtered words for this game session
+    setGameSessionWords([...filteredWords]);
+    
     toast({
       title: "Game Started",
       description: `Good luck with your ${filteredWords.length} flashcards!`,
@@ -260,6 +263,9 @@ const FlashcardGame = () => {
     setGameActive(false);
     setShowResults(true);
     setGameEndTime(Date.now());
+    
+    // Clear the game session words
+    setGameSessionWords([]);
   };
   
   // Calculate game statistics
@@ -436,8 +442,8 @@ const FlashcardGame = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {/* Word Progress Dialog */}
-                    <WordProgressDialog words={words} />
+                    {/* Word Progress Dialog - now using gameSessionWords instead of all words */}
+                    <WordProgressDialog words={gameActive ? filteredWords : gameSessionWords} />
                     
                     {gameActive && (
                       <Button 
