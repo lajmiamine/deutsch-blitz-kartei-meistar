@@ -104,7 +104,11 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
                 <span>Overall Progress: {dialogData.masteredCount}/{dialogData.totalWords} words</span>
                 <span>{dialogData.progressPercentage}%</span>
               </div>
-              <Progress value={dialogData.progressPercentage} className="h-2" />
+              <Progress 
+                value={dialogData.progressPercentage} 
+                className="h-2" 
+                indicatorClassName="bg-green-500 dark:bg-green-500"
+              />
             </div>
             
             <div className="max-h-64 overflow-y-auto pr-2 space-y-2">
@@ -165,7 +169,7 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
                         <Progress 
                           value={progressPercentage} 
                           className="h-1.5" 
-                          indicatorClassName={word.mastered ? "bg-green-500 dark:bg-green-500" : undefined}
+                          indicatorClassName={word.mastered ? "bg-green-500 dark:bg-green-500" : "bg-blue-500 dark:bg-blue-500"}
                         />
                       </div>
                     </div>

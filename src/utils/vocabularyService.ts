@@ -405,13 +405,13 @@ export const getWordsByIds = (ids: string[]): VocabularyWord[] => {
   return allWords.filter(word => ids.includes(word.id));
 };
 
-// Add this new function to get non-mastered vocabulary words
+// Get non-mastered vocabulary words
 export const getNonMasteredVocabulary = (): VocabularyWord[] => {
   const vocabulary = getApprovedVocabulary();
   return vocabulary.filter(word => !word.mastered);
 };
 
-// Add this new function to get non-mastered vocabulary filtered by difficulty
+// Get non-mastered vocabulary filtered by difficulty
 export const getNonMasteredVocabularyByDifficulty = (difficulty: number): VocabularyWord[] => {
   const vocabulary = getApprovedVocabulary();
   return vocabulary.filter(word => word.difficulty === difficulty && !word.mastered);

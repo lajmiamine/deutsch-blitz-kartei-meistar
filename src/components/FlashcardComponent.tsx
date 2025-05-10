@@ -162,7 +162,11 @@ const FlashcardComponent = ({
       <Progress 
         value={getProgressPercentage()} 
         className="h-1.5" 
-        indicatorClassName={word.mastered ? "bg-green-500 dark:bg-green-500" : undefined}
+        indicatorClassName={
+          word.mastered 
+            ? "bg-green-500 dark:bg-green-500" 
+            : "bg-blue-500 dark:bg-blue-500"
+        }
       />
     </div>
   );
