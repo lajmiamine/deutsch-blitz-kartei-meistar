@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, ChangeEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -361,7 +360,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
               id="fileUpload"
               type="file"
               onChange={handleFileChange}
-              accept=".txt,.doc,.docx,.pdf"
+              accept=".txt,.doc,.docx,.pdf,.xml"
               className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
             />
             <Button
@@ -378,6 +377,9 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
           {file && (
             <p className="text-sm text-muted-foreground">
               File selected: {file.name}
+              {file.name.toLowerCase().endsWith('.xml') && (
+                <span className="ml-2 text-blue-500">(XML format)</span>
+              )}
             </p>
           )}
         </div>

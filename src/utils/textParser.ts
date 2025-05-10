@@ -1,4 +1,3 @@
-
 export interface ParsedWord {
   german: string;
   english: string;
@@ -15,13 +14,21 @@ export const extractVocabularyFromText = async (file: File, sourceLanguage: stri
       try {
         const text = event.target?.result as string || "";
         
-        // Step 1: Extract all words 4 letters or longer
-        const words = extractWords(text);
-        
-        // Step 2: For each word, get a translation
-        const translatedWords = await translateWords(words, sourceLanguage, targetLanguage);
-        
-        resolve(translatedWords);
+        // Check if the file is an XML file by extension or content
+        if (file.name.toLowerCase().endsWith('.xml') || text.trim().startsWith('<?xml') || text.trim().startsWith('<words>')) {
+          // Process as XML
+          const parsedWords = parseXmlVocabulary(text);
+          resolve(parsedWords);
+        } else {
+          // Process as regular text
+          // Step 1: Extract all words 4 letters or longer
+          const words = extractWords(text);
+          
+          // Step 2: For each word, get a translation
+          const translatedWords = await translateWords(words, sourceLanguage, targetLanguage);
+          
+          resolve(translatedWords);
+        }
       } catch (err) {
         reject(new Error("Failed to extract vocabulary from text file"));
       }
@@ -33,6 +40,46 @@ export const extractVocabularyFromText = async (file: File, sourceLanguage: stri
 
     reader.readAsText(file);
   });
+};
+
+// XML parser for vocabulary words
+const parseXmlVocabulary = (xmlContent: string): Array<ParsedWord> => {
+  const parsedWords: ParsedWord[] = [];
+  
+  try {
+    // Simple XML parsing without using a DOM parser
+    // Look for <word> tags
+    const wordRegex = /<word>([\s\S]*?)<\/word>/g;
+    let wordMatch;
+    
+    while ((wordMatch = wordRegex.exec(xmlContent)) !== null) {
+      const wordContent = wordMatch[1];
+      
+      // Extract German word (jp tag in the example)
+      const germanMatch = /<jp>(.*?)<\/jp>/i.exec(wordContent);
+      
+      // Extract English word (eng tag in the example)
+      const englishMatch = /<eng>(.*?)<\/eng>/i.exec(wordContent);
+      
+      if (germanMatch && englishMatch) {
+        const german = germanMatch[1].trim();
+        const english = englishMatch[1].trim();
+        
+        if (german && english) {
+          parsedWords.push({
+            german,
+            english
+          });
+        }
+      }
+    }
+    
+    console.log(`Parsed ${parsedWords.length} words from XML`);
+  } catch (error) {
+    console.error("Error parsing XML:", error);
+  }
+  
+  return parsedWords;
 };
 
 // Helper function to extract words 4 letters or longer from text
