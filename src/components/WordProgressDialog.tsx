@@ -29,14 +29,6 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
     return allVocabulary.filter((word: VocabularyWord) => wordIds.has(word.id));
   };
   
-  // Filter to only include words that have been attempted
-  const getAttemptedWords = () => {
-    const latestWords = getLatestWordData();
-    return latestWords.filter(word => 
-      (word.timesCorrect || 0) > 0 || (word.timesIncorrect || 0) > 0
-    );
-  };
-  
   // This function will be called whenever the dialog is opened
   const handleDialogChange = (open: boolean) => {
     setIsOpen(open);
@@ -45,18 +37,16 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
   // Prepare data only when the dialog is open to ensure we have the latest data
   const prepareDialogData = () => {
     const latestWords = getLatestWordData();
-    const attemptedWords = getAttemptedWords();
     
     // Calculate stats
     const totalWords = latestWords.length;
-    const attemptedCount = attemptedWords.length;
-    const masteredCount = attemptedWords.filter(word => word.mastered).length;
+    const masteredCount = latestWords.filter(word => word.mastered).length;
     const progressPercentage = totalWords > 0 
       ? Math.round((masteredCount / totalWords) * 100) 
       : 0;
     
     // Sort words by mastery status and then by difficulty
-    const sortedWords = [...attemptedWords].sort((a, b) => {
+    const sortedWords = [...latestWords].sort((a, b) => {
       // First sort by mastery (mastered words first)
       if (a.mastered && !b.mastered) return -1;
       if (!a.mastered && b.mastered) return 1;
@@ -67,7 +57,6 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
     
     return {
       totalWords,
-      attemptedCount,
       masteredCount,
       progressPercentage,
       sortedWords
@@ -76,6 +65,20 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
   
   // Only calculate the data if the dialog is open
   const dialogData = isOpen ? prepareDialogData() : null;
+  
+  // Calculate mastery requirements for a word
+  const getMasteryRequirement = (word: VocabularyWord) => {
+    return (word.timesIncorrect || 0) > 0 ? 3 : 2;
+  };
+  
+  // Calculate progress percentage for a word
+  const getWordProgressPercentage = (word: VocabularyWord) => {
+    if (word.mastered) return 100;
+    
+    const requirement = getMasteryRequirement(word);
+    const currentStreak = word.correctStreak || 0;
+    return Math.round((currentStreak / requirement) * 100);
+  };
   
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogChange}>
@@ -98,7 +101,7 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
           <div className="space-y-4 my-4">
             <div className="space-y-2">
               <div className="flex justify-between text-sm mb-1 dark:text-gray-300">
-                <span>Mastered: {dialogData.masteredCount}/{dialogData.totalWords} words</span>
+                <span>Overall Progress: {dialogData.masteredCount}/{dialogData.totalWords} words</span>
                 <span>{dialogData.progressPercentage}%</span>
               </div>
               <Progress value={dialogData.progressPercentage} className="h-2" />
@@ -110,13 +113,11 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
                   const correctCount = word.timesCorrect || 0;
                   const incorrectCount = word.timesIncorrect || 0;
                   const totalAttempts = correctCount + incorrectCount;
-                  const correctRatio = totalAttempts > 0 
-                    ? Math.round((correctCount / totalAttempts) * 100) 
-                    : 0;
                   
                   // Get required streak for mastery
-                  const requiredStreak = incorrectCount > 0 ? 3 : 2;
+                  const requiredStreak = getMasteryRequirement(word);
                   const currentStreak = word.correctStreak || 0;
+                  const progressPercentage = getWordProgressPercentage(word);
                   
                   return (
                     <div 
@@ -153,19 +154,19 @@ const WordProgressDialog = ({ words }: WordProgressDialogProps) => {
                                word.difficulty === 2 ? "Medium" : "Hard"}
                             </span>
                           </div>
-                          <div className="text-sm font-medium mt-1">
-                            {correctRatio}% accuracy
-                          </div>
                         </div>
                       </div>
                       
                       <div className="mt-2">
-                        <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden dark:bg-gray-600">
-                          <div 
-                            className="h-full bg-primary"
-                            style={{ width: `${correctRatio}%` }}
-                          ></div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span>Mastery Progress</span>
+                          <span>{progressPercentage}%</span>
                         </div>
+                        <Progress 
+                          value={progressPercentage} 
+                          className="h-1.5" 
+                          indicatorClassName={word.mastered ? "bg-green-500 dark:bg-green-500" : undefined}
+                        />
                       </div>
                     </div>
                   );

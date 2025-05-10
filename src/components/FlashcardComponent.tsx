@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { VocabularyWord } from "@/utils/vocabularyService";
-import { Trash2, Star, BarChart } from "lucide-react";
+import { Trash2, Star } from "lucide-react";
 
 interface FlashcardComponentProps {
   word: VocabularyWord;
@@ -42,6 +43,19 @@ const FlashcardComponent = ({
     setHint("");
     setShowExplanation(false);
   }, [word, direction]);
+
+  // Calculate mastery requirement and progress
+  const getMasteryRequirement = () => {
+    return (word.timesIncorrect || 0) > 0 ? 3 : 2;
+  };
+  
+  const getProgressPercentage = () => {
+    if (word.mastered) return 100;
+    
+    const requirement = getMasteryRequirement();
+    const currentStreak = word.correctStreak || 0;
+    return Math.round((currentStreak / requirement) * 100);
+  };
 
   const checkAnswer = () => {
     const normalizedUserAnswer = userAnswer.trim().toLowerCase();
@@ -116,7 +130,7 @@ const FlashcardComponent = ({
   
   // Get mastery status badge
   const getMasteryBadge = () => {
-    const requiredCorrect = (word.timesIncorrect || 0) > 0 ? 3 : 2;
+    const requiredCorrect = getMasteryRequirement();
     const currentStreak = word.correctStreak || 0;
     
     if (word.mastered) {
@@ -136,29 +150,20 @@ const FlashcardComponent = ({
     </div>
   ) : null;
 
-  // Show word progress statistics
-  const wordProgressStats = (
-    <div className="text-xs space-y-1 mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
-      <div className="flex justify-between">
-        <span>Correct answers:</span>
-        <span className="font-medium text-green-600 dark:text-green-400">{word.timesCorrect || 0}</span>
-      </div>
-      <div className="flex justify-between">
-        <span>Incorrect answers:</span>
-        <span className="font-medium text-red-600 dark:text-red-400">{word.timesIncorrect || 0}</span>
-      </div>
-      <div className="flex justify-between">
-        <span>Current streak:</span>
-        <span className="font-medium">{word.correctStreak || 0}</span>
-      </div>
-      <div className="flex justify-between">
-        <span>Status:</span>
-        <span className="font-medium">
-          {word.mastered ? 
-            <span className="text-green-600 dark:text-green-400">Mastered</span> : 
-            "Learning"}
+  // Simplified word progress display with progress bar
+  const wordProgressDisplay = (
+    <div className="mt-3 space-y-1">
+      <div className="flex justify-between text-xs mb-1">
+        <span className="text-muted-foreground dark:text-gray-400">
+          Mastery Progress: {word.correctStreak || 0}/{getMasteryRequirement()}
         </span>
+        <span className="font-medium">{getProgressPercentage()}%</span>
       </div>
+      <Progress 
+        value={getProgressPercentage()} 
+        className="h-1.5" 
+        indicatorClassName={word.mastered ? "bg-green-500 dark:bg-green-500" : undefined}
+      />
     </div>
   );
 
@@ -166,7 +171,7 @@ const FlashcardComponent = ({
     <div className={`flashcard w-full max-w-md mx-auto ${isFlipped ? "flipped" : ""}`}>
       <div className="flashcard-inner">
         <Card className="flashcard-front border-2 p-6 shadow-lg dark:bg-gray-800 dark:border-gray-700">
-          <div className="flex flex-col items-center space-y-8">
+          <div className="flex flex-col items-center space-y-6">
             <div className="flex justify-between w-full">
               <div className="space-y-2 text-center flex-1">
                 <div className="flex items-center justify-center gap-2 mb-1">
@@ -182,8 +187,10 @@ const FlashcardComponent = ({
                   {direction === "german-to-english" ? "Translate to English" : "Translate to German"}
                 </p>
                 {sourceDisplay}
-                {/* Add word progress stats here on the front card */}
-                {wordProgressStats}
+                
+                {/* Add the simplified progress display here */}
+                {wordProgressDisplay}
+                
                 {hint && (
                   <p className="text-sm text-muted-foreground dark:text-gray-400">Hint: {hint}</p>
                 )}
@@ -298,8 +305,10 @@ const FlashcardComponent = ({
               </div>
             )}
             
-            {/* Word progress statistics */}
-            {wordProgressStats}
+            {/* Simplified word progress display with progress bar */}
+            <div className="w-full">
+              {wordProgressDisplay}
+            </div>
             
             <Button 
               onClick={onSkip}
