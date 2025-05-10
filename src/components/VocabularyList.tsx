@@ -13,6 +13,7 @@ interface VocabularyListProps {
   onApproveWord: (id: string, approved: boolean) => void;
   onDeleteWord: (id: string) => void;
   onEditWord: (id: string, german: string, english: string) => void;
+  onUpdateDifficulty?: (id: string, difficulty: number) => void;
   selectedSource?: string;
   sources?: string[];
   onSourceChange?: (source: string | undefined) => void;
@@ -23,6 +24,7 @@ const VocabularyList = ({
   onApproveWord, 
   onDeleteWord, 
   onEditWord,
+  onUpdateDifficulty,
   selectedSource,
   sources = [],
   onSourceChange
@@ -109,6 +111,23 @@ const VocabularyList = ({
     onApproveWord(id, approved);
   };
 
+  // Handle difficulty change with state update
+  const handleDifficultyChange = (id: string, difficulty: string) => {
+    if (!onUpdateDifficulty) return;
+    
+    const difficultyValue = parseInt(difficulty);
+    
+    // Update the local words state immediately
+    setWords(currentWords => 
+      currentWords.map(word => 
+        word.id === id ? { ...word, difficulty: difficultyValue } : word
+      )
+    );
+    
+    // Call the parent component's handler
+    onUpdateDifficulty(id, difficultyValue);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
@@ -151,6 +170,7 @@ const VocabularyList = ({
               <TableHead className="w-[100px]">Approved</TableHead>
               <TableHead>German</TableHead>
               <TableHead>English</TableHead>
+              <TableHead>Difficulty</TableHead>
               <TableHead>Source</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -158,7 +178,7 @@ const VocabularyList = ({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
                     <p>Loading vocabulary...</p>
@@ -197,6 +217,25 @@ const VocabularyList = ({
                     )}
                   </TableCell>
                   <TableCell>
+                    {onUpdateDifficulty && (
+                      <Select
+                        value={word.difficulty?.toString() || "0"}
+                        onValueChange={(value) => handleDifficultyChange(word.id, value)}
+                        disabled={editingId === word.id}
+                      >
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Unknown</SelectItem>
+                          <SelectItem value="1">Easy</SelectItem>
+                          <SelectItem value="2">Medium</SelectItem>
+                          <SelectItem value="3">Hard</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     {word.source && (
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3 text-muted-foreground" />
@@ -227,7 +266,7 @@ const VocabularyList = ({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
                   No vocabulary words found
                 </TableCell>
               </TableRow>

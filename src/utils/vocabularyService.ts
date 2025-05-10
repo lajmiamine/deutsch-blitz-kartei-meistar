@@ -106,6 +106,18 @@ export const updateWordApproval = (id: string, approved: boolean): void => {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
 };
 
+// Update a vocabulary word's difficulty
+export const updateWordDifficulty = (id: string, difficulty: number): void => {
+  const vocabulary = getVocabulary();
+  const updatedVocabulary = vocabulary.map(word => {
+    if (word.id === id) {
+      return { ...word, difficulty };
+    }
+    return word;
+  });
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+};
+
 // Update a vocabulary word
 export const updateVocabularyWord = (id: string, german: string, english: string): void => {
   const vocabulary = getVocabulary();

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { VocabularyWord } from "@/utils/vocabularyService";
-import { Trash2 } from "lucide-react";
+import { Trash2, Star } from "lucide-react";
 
 interface FlashcardComponentProps {
   word: VocabularyWord;
@@ -81,6 +81,22 @@ const FlashcardComponent = ({
     }
   };
 
+  // Get difficulty label and color
+  const getDifficultyInfo = () => {
+    switch(word.difficulty) {
+      case 1:
+        return { label: "Easy", color: "text-green-500" };
+      case 2:
+        return { label: "Medium", color: "text-yellow-500" };
+      case 3:
+        return { label: "Hard", color: "text-red-500" };
+      default:
+        return { label: "Unknown", color: "text-gray-500" };
+    }
+  };
+  
+  const difficultyInfo = getDifficultyInfo();
+
   // Show source if available
   const sourceDisplay = word.source ? (
     <div className="text-xs text-muted-foreground mt-1">
@@ -95,9 +111,14 @@ const FlashcardComponent = ({
           <div className="flex flex-col items-center space-y-8">
             <div className="flex justify-between w-full">
               <div className="space-y-2 text-center flex-1">
-                <h3 className="text-2xl font-bold text-german-black">
-                  {promptWord}
-                </h3>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <h3 className="text-2xl font-bold text-german-black">
+                    {promptWord}
+                  </h3>
+                  <span className={`text-xs font-medium ${difficultyInfo.color} flex items-center gap-1`}>
+                    <Star className="h-3 w-3" /> {difficultyInfo.label}
+                  </span>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   {direction === "german-to-english" ? "Translate to English" : "Translate to German"}
                 </p>
@@ -144,9 +165,14 @@ const FlashcardComponent = ({
           <div className="flex flex-col items-center space-y-6">
             <div className="w-full flex justify-between">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">
-                  {direction === "german-to-english" ? "The German word" : "The English word"}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    {direction === "german-to-english" ? "The German word" : "The English word"}
+                  </p>
+                  <span className={`text-xs font-medium ${difficultyInfo.color} flex items-center gap-1`}>
+                    <Star className="h-3 w-3" /> {difficultyInfo.label}
+                  </span>
+                </div>
                 <h3 className="text-2xl font-bold">{promptWord}</h3>
                 {sourceDisplay}
               </div>

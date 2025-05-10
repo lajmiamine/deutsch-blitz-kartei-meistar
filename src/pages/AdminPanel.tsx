@@ -15,6 +15,7 @@ import {
   updateWordApproval,
   deleteVocabularyWord,
   updateVocabularyWord,
+  updateWordDifficulty,
   addMultipleVocabularyWords,
   clearVocabulary,
   getAllSources,
@@ -182,6 +183,28 @@ const AdminPanel = () => {
     });
   };
 
+  const handleUpdateDifficulty = (id: string, difficulty: number) => {
+    updateWordDifficulty(id, difficulty);
+    
+    // Update the local state
+    setVocabulary(prev => {
+      return prev.map(word => {
+        if (word.id === id) {
+          return { ...word, difficulty };
+        }
+        return word;
+      });
+    });
+    
+    const difficultyLabels = ["Unknown", "Easy", "Medium", "Hard"];
+    
+    toast({
+      title: "Difficulty Updated",
+      description: `Word difficulty set to "${difficultyLabels[difficulty] || 'Unknown'}".`,
+      duration: 2000,
+    });
+  };
+
   const handleResetVocabulary = () => {
     if (window.confirm("Are you sure you want to reset all vocabulary? This cannot be undone.")) {
       clearVocabulary();
@@ -332,6 +355,7 @@ const AdminPanel = () => {
                 onApproveWord={handleApproveWord}
                 onDeleteWord={handleDeleteWord}
                 onEditWord={handleEditWord}
+                onUpdateDifficulty={handleUpdateDifficulty}
                 selectedSource={selectedSource}
                 sources={fileSources}
                 onSourceChange={handleSourceChange}
