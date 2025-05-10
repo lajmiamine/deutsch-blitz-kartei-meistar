@@ -55,6 +55,9 @@ const difficultyOptions = [
   { value: 3, label: "Hard" }
 ];
 
+// Define the import status type to ensure string literal types can be properly compared
+type ImportStatus = "idle" | "processing" | "extracted" | "imported";
+
 const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
@@ -62,7 +65,7 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [extractedWords, setExtractedWords] = useState<ParsedWord[]>([]);
-  const [importStatus, setImportStatus] = useState<"idle" | "processing" | "extracted" | "imported">("idle");
+  const [importStatus, setImportStatus] = useState<ImportStatus>("idle");
   
   // File source tracking
   const [fileSource, setFileSource] = useState<string>("");
