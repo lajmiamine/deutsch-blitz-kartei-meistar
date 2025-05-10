@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,8 +49,8 @@ const Index = () => {
           
           <Card className="border-2 hover:shadow-lg transition-shadow">
             <CardHeader>
-              <CardTitle>PDF Vocabulary Import</CardTitle>
-              <CardDescription>Build your custom vocabulary list</CardDescription>
+              <CardTitle>Vocabulary Management</CardTitle>
+              <CardDescription>Build your custom vocabulary lists</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-48 bg-gray-100 rounded-md flex items-center justify-center mb-4">
@@ -68,7 +67,7 @@ const Index = () => {
                 </div>
               </div>
               <p className="text-muted-foreground text-sm">
-                Upload PDF documents containing vocabulary to automatically import words and create personalized learning materials.
+                Import vocabulary from PDF documents or manage your word collections in the admin panel to create personalized learning materials.
               </p>
             </CardContent>
             <CardFooter>

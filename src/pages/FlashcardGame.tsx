@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { CheckCircle, X, Shuffle } from "lucide-react";
 import FlashcardComponent from "@/components/FlashcardComponent";
 import Navbar from "@/components/Navbar";
@@ -40,24 +41,24 @@ const FlashcardGame = () => {
   const [showingWrongWords, setShowingWrongWords] = useState(false);
   const [wordCorrectCounts, setWordCorrectCounts] = useState<Record<string, number>>({});
   
-  // New state for tracking if a word had mistakes
+  // State for tracking if a word had mistakes
   const [wordMistakes, setWordMistakes] = useState<Record<string, boolean>>({});
   
-  // New state for word count and selection mode
+  // State for word count and selection mode
   const [wordCount, setWordCount] = useState<number | "all">(10);
-  const [selectionMode, setSelectionMode] = useState<"random" | "select">("random");
+  const [customWordCount, setCustomWordCount] = useState<string>("");
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
   const [isSelectingWords, setIsSelectingWords] = useState(false);
   
-  // New state for source filtering
+  // State for source filtering
   const [availableSources, setAvailableSources] = useState<string[]>([]);
   const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
   
-  // New state for showing word progress
+  // State for showing word progress
   const [showWordProgress, setShowWordProgress] = useState(false);
   
-  // Available word count options
-  const wordCountOptions = [5, 10, 15, 20, 30, 50, "all"];
+  // Available word count options - updated as requested
+  const wordCountOptions = [10, 20, 50, 100, "all"];
 
   // Load words based on selected difficulty and source
   const loadWords = useCallback(() => {
@@ -132,31 +133,23 @@ const FlashcardGame = () => {
   const prepareWordsForPractice = () => {
     let practiceWords: VocabularyWord[] = [];
     
-    if (selectionMode === "random") {
-      // Get randomly selected words based on word count
-      const shuffled = [...allWords].sort(() => Math.random() - 0.5);
-      
-      if (wordCount === "all") {
-        practiceWords = shuffled;
-      } else {
-        // If we have fewer words than requested, use all available words
-        const count = Math.min(wordCount as number, shuffled.length);
-        practiceWords = shuffled.slice(0, count);
-      }
+    // Get shuffled words
+    const shuffled = [...allWords].sort(() => Math.random() - 0.5);
+    
+    // Determine the number of words to use
+    let count: number | "all" = wordCount;
+    
+    // If custom count is provided and valid, use it
+    if (customWordCount && !isNaN(parseInt(customWordCount)) && parseInt(customWordCount) > 0) {
+      count = parseInt(customWordCount);
+    }
+    
+    if (count === "all") {
+      practiceWords = shuffled;
     } else {
-      // Get specifically selected words
-      if (selectedWordIds.length === 0) {
-        toast({
-          title: "No words selected",
-          description: "Please select at least one word to practice.",
-          duration: 3000,
-        });
-        return false;
-      }
-      
-      practiceWords = allWords
-        .filter(word => selectedWordIds.includes(word.id))
-        .sort(() => Math.random() - 0.5); // Always shuffle
+      // If we have fewer words than requested, use all available words
+      const numCount = Math.min(count as number, shuffled.length);
+      practiceWords = shuffled.slice(0, numCount);
     }
     
     if (practiceWords.length === 0) {
@@ -346,47 +339,6 @@ const FlashcardGame = () => {
     setCurrentWordIndex(nextIndex);
   };
 
-  const resetGame = () => {
-    startGame();
-    toast({
-      title: "Game Reset",
-      description: "All progress has been reset.",
-      duration: 3000,
-    });
-  };
-
-  // New function to handle word removal
-  const handleRemoveWord = (wordId: string) => {
-    // Remove the word from the vocabulary service
-    deleteVocabularyWord(wordId);
-    
-    // Remove from current game lists
-    setWords(prev => prev.filter(word => word.id !== wordId));
-    setAllWords(prev => prev.filter(word => word.id !== wordId));
-    setWrongWords(prev => prev.filter(word => word.id !== wordId));
-    
-    // Notify the user
-    toast({
-      title: "Word Removed",
-      description: "The word has been removed from your vocabulary.",
-      duration: 2000,
-    });
-    
-    // If this was the last word, end the game
-    if (words.length <= 1) {
-      toast({
-        title: "Game Over",
-        description: "No more words to practice.",
-        duration: 3000,
-      });
-      setGameStarted(false);
-      return;
-    }
-    
-    // Otherwise, go to next word
-    goToNextWord();
-  };
-
   const toggleWrongWords = () => {
     if (wrongWords.length === 0) {
       toast({
@@ -419,17 +371,7 @@ const FlashcardGame = () => {
     });
   };
 
-  // Toggle word selection
-  const toggleSelectionMode = (mode: "random" | "select") => {
-    setSelectionMode(mode);
-    if (mode === "select") {
-      setIsSelectingWords(true);
-    } else {
-      setIsSelectingWords(false);
-    }
-  };
-
-  // Toggle word selection in the list
+  // Toggle word selection view
   const toggleWordSelection = (wordId: string) => {
     setSelectedWordIds(prev => {
       if (prev.includes(wordId)) {
@@ -472,6 +414,11 @@ const FlashcardGame = () => {
     const requiredCorrectAnswers = wordMistakes[wordId] ? 3 : 2;
     const correctCount = wordCorrectCounts[wordId] || 0;
     return (correctCount / requiredCorrectAnswers) * 100;
+  };
+
+  // Handle custom word count input change
+  const handleCustomWordCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomWordCount(e.target.value);
   };
 
   return (
@@ -579,7 +526,7 @@ const FlashcardGame = () => {
                   </TabsList>
                   
                   <TabsContent value="all" className="text-center py-4">
-                    Practice with all available vocabulary words
+                    Select the difficulty level for your practice session
                   </TabsContent>
                   <TabsContent value="easy" className="text-center py-4">
                     Practice with easier words that you've mastered
@@ -593,83 +540,85 @@ const FlashcardGame = () => {
                 </Tabs>
                 
                 <div className="mt-6 space-y-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-sm text-muted-foreground">German → English</span>
-                    <Switch 
-                      checked={direction === "english-to-german"}
-                      onCheckedChange={() => setDirection(prev => 
-                        prev === "german-to-english" ? "english-to-german" : "german-to-english"
-                      )}
-                    />
-                    <span className="text-sm text-muted-foreground">English → German</span>
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="flex items-center justify-center gap-2 p-2 border rounded-md w-max">
+                      <span className={`px-3 py-1 rounded-md ${direction === "german-to-english" ? "bg-german-gold text-black" : "bg-gray-100"}`}>
+                        German → English
+                      </span>
+                      <Switch 
+                        checked={direction === "english-to-german"}
+                        onCheckedChange={() => setDirection(prev => 
+                          prev === "german-to-english" ? "english-to-german" : "english-to-german"
+                        )}
+                      />
+                      <span className={`px-3 py-1 rounded-md ${direction === "english-to-german" ? "bg-german-gold text-black" : "bg-gray-100"}`}>
+                        English → German
+                      </span>
+                    </div>
                   </div>
                   
                   <div className="flex flex-col space-y-4">
                     <div>
                       <label className="text-sm font-medium mb-1 block">Number of Words</label>
-                      <Select 
-                        value={typeof wordCount === "number" ? wordCount.toString() : wordCount} 
-                        onValueChange={(value) => {
-                          if (value === "all") {
-                            setWordCount("all");
-                          } else {
-                            setWordCount(parseInt(value));
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-[180px] mx-auto">
-                          <SelectValue placeholder="Select word count" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {wordCountOptions.map((count) => (
-                            <SelectItem key={count.toString()} value={count.toString()}>
-                              {count === "all" ? "All Words" : `${count} Words`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex flex-col space-y-3">
+                        <Select 
+                          value={typeof wordCount === "number" ? wordCount.toString() : wordCount} 
+                          onValueChange={(value) => {
+                            if (value === "all") {
+                              setWordCount("all");
+                            } else if (value === "custom") {
+                              // Do nothing, keep the current wordCount but show custom input
+                            } else {
+                              setWordCount(parseInt(value));
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-[180px] mx-auto">
+                            <SelectValue placeholder="Select word count" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {wordCountOptions.map((count) => (
+                              <SelectItem key={count.toString()} value={count.toString()}>
+                                {count === "all" ? "All Words" : `${count} Words`}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="custom">Custom number</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        <div className="flex justify-center">
+                          <Input
+                            type="number"
+                            placeholder="Enter custom word count"
+                            className="w-[180px]"
+                            value={customWordCount}
+                            onChange={handleCustomWordCountChange}
+                            min={1}
+                          />
+                        </div>
+                      </div>
                     </div>
                     
                     <div>
-                      <label className="text-sm font-medium mb-1 block">Selection Mode</label>
-                      <div className="flex justify-center gap-4">
-                        <Button 
-                          variant={selectionMode === "random" ? "default" : "outline"}
-                          onClick={() => toggleSelectionMode("random")}
-                          className="flex items-center gap-2"
-                        >
-                          <Shuffle className="h-4 w-4" /> Random Words
-                        </Button>
-                        <Button 
-                          variant={selectionMode === "select" ? "default" : "outline"}
-                          onClick={() => toggleSelectionMode("select")}
-                          className="flex items-center gap-2"
-                        >
-                          <CheckCircle className="h-4 w-4" /> Select Words
-                        </Button>
-                      </div>
+                      <label className="text-sm font-medium mb-1 block">Word Selection</label>
+                      <Button 
+                        onClick={() => setIsSelectingWords(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <CheckCircle className="h-4 w-4" /> Select Specific Words
+                      </Button>
                     </div>
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-center">
-                {selectionMode === "select" ? (
-                  <Button 
-                    size="lg" 
-                    className="bg-german-gold text-black hover:bg-yellow-500"
-                    onClick={() => setIsSelectingWords(true)}
-                  >
-                    Select Words
-                  </Button>
-                ) : (
-                  <Button 
-                    size="lg" 
-                    className="bg-german-gold text-black hover:bg-yellow-500"
-                    onClick={startGame}
-                  >
-                    Start Game
-                  </Button>
-                )}
+                <Button 
+                  size="lg" 
+                  className="bg-german-gold text-black hover:bg-yellow-500"
+                  onClick={startGame}
+                >
+                  Start Game
+                </Button>
               </CardFooter>
             </Card>
           )
@@ -730,11 +679,6 @@ const FlashcardGame = () => {
                 </div>
                 
                 <div className="flex items-center justify-center gap-2 flex-wrap">
-                  <Button variant="outline" size="sm" onClick={toggleDirection}>
-                    {direction === "german-to-english" 
-                      ? "Switch to English → German" 
-                      : "Switch to German → English"}
-                  </Button>
                   <Button 
                     variant={showingWrongWords ? "destructive" : "outline"} 
                     size="sm" 
@@ -743,14 +687,6 @@ const FlashcardGame = () => {
                   >
                     {showingWrongWords ? "Hide Wrong Words" : "Show Wrong Words"}
                   </Button>
-                  <Button 
-                    variant="outline"
-                    size="sm" 
-                    onClick={resetGame}
-                  >
-                    Reset Game
-                  </Button>
-                  {/* New Word Progress Button */}
                   <Button
                     variant={showWordProgress ? "default" : "outline"}
                     size="sm"
@@ -758,7 +694,15 @@ const FlashcardGame = () => {
                   >
                     {showWordProgress ? "Hide Progress" : "Show Word Progress"}
                   </Button>
-                  {/* New End Game Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleDirection}
+                  >
+                    {direction === "german-to-english" 
+                      ? "Switch to English → German" 
+                      : "Switch to German → English"}
+                  </Button>
                   <Button
                     variant="destructive"
                     size="sm"
