@@ -259,8 +259,10 @@ export const addMultipleVocabularyWords = (words: Array<{ german: string; englis
 };
 
 // Update word statistics after a flashcard attempt
-export const updateWordStatistics = (id: string, wasCorrect: boolean): void => {
+export const updateWordStatistics = (id: string, wasCorrect: boolean): VocabularyWord | null => {
   const vocabulary = getVocabulary();
+  let updatedWord: VocabularyWord | null = null;
+  
   const updatedVocabulary = vocabulary.map(word => {
     if (word.id === id) {
       const timesCorrect = wasCorrect ? word.timesCorrect + 1 : word.timesCorrect;
@@ -284,18 +286,35 @@ export const updateWordStatistics = (id: string, wasCorrect: boolean): void => {
         mastered = true;
       }
       
-      // No longer adjusting difficulty based on mastery status
-      // The difficulty will remain as set by the user or initial value
-      
-      return { 
+      updatedWord = { 
         ...word, 
         timesCorrect, 
         timesIncorrect,
         correctStreak,
         mastered
       };
+      
+      return updatedWord;
     }
     return word;
+  });
+  
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+  return updatedWord;
+};
+
+// Reset mastery for all words
+export const resetWordMasteryProgress = (): void => {
+  const vocabulary = getVocabulary();
+  const updatedVocabulary = vocabulary.map(word => {
+    return { 
+      ...word, 
+      correctStreak: 0,
+      mastered: false,
+      // Reset the statistics as well
+      timesCorrect: 0,
+      timesIncorrect: 0
+    };
   });
   
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
@@ -312,20 +331,6 @@ export const getVocabularyWithProgress = (): VocabularyWord[] => {
       mastered: word.mastered || false
     };
   });
-};
-
-// Reset mastery for all words
-export const resetWordMasteryProgress = (): void => {
-  const vocabulary = getVocabulary();
-  const updatedVocabulary = vocabulary.map(word => {
-    return { 
-      ...word, 
-      correctStreak: 0,
-      mastered: false
-    };
-  });
-  
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
 };
 
 // Get vocabulary words based on difficulty

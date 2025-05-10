@@ -17,7 +17,8 @@ import {
   getApprovedVocabularyBySource,
   getWordCountByDifficulty,
   getVocabularyWithProgress,
-  getWordsByIds
+  getWordsByIds,
+  resetWordMasteryProgress
 } from "@/utils/vocabularyService";
 import { CircleCheck, X, RefreshCw, Play, Trophy, BarChart, Check } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -215,22 +216,23 @@ const FlashcardGame = () => {
   };
 
   const handleAnswerChecked = (cardId: string, wasCorrect: boolean) => {
-    // Update word statistics
-    updateWordStatistics(cardId, wasCorrect);
+    // Update word statistics and get the updated word
+    const updatedWord = updateWordStatistics(cardId, wasCorrect);
     
     // Update session progress
     setAnsweredCount(prev => prev + 1);
     
-    // Find the word to check if it became mastered
-    const word = filteredWords.find(w => w.id === cardId);
-    const wasAlreadyMastered = masteredWords.includes(cardId);
-    
-    if (word && word.mastered && !wasAlreadyMastered) {
-      // Word just became mastered in this session
-      setMasteredWords(prev => [...prev, cardId]);
+    // Check if the word became mastered after this answer
+    if (updatedWord && updatedWord.mastered) {
+      const wasAlreadyMastered = masteredWords.includes(cardId);
       
-      // Update unmastered words list
-      setUnmasteredWords(prev => prev.filter(w => w.id !== cardId));
+      if (!wasAlreadyMastered) {
+        // Word just became mastered in this session
+        setMasteredWords(prev => [...prev, cardId]);
+        
+        // Update unmastered words list
+        setUnmasteredWords(prev => prev.filter(w => w.id !== cardId));
+      }
     }
     
     if (wasCorrect) {
@@ -289,14 +291,19 @@ const FlashcardGame = () => {
   };
   
   const handleResetGame = () => {
+    // Reset all word mastery progress in localStorage
+    resetWordMasteryProgress();
+    
     // Reset progress but keep the same words
     setCorrectAnswers([]);
     setIncorrectAnswers([]);
     setAnsweredCount(0);
+    
+    // Reset mastered words - all words are now unmastered
     setMasteredWords([]);
     
     // Reset unmastered words to include all words
-    setUnmasteredWords([...filteredWords].filter(word => !word.mastered));
+    setUnmasteredWords([...filteredWords]);
     
     // Reset current index
     setCurrentWordIndex(0);
@@ -307,7 +314,7 @@ const FlashcardGame = () => {
     
     toast({
       title: "Game Reset",
-      description: "Your progress has been reset and cards have been reshuffled.",
+      description: "Your progress has been reset for all words and cards have been reshuffled.",
       duration: 2000,
     });
   };
