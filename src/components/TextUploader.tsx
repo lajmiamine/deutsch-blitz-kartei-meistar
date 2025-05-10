@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,15 +11,16 @@ import { XCircle } from "lucide-react";
 
 interface TextUploaderProps {
   onFileImported?: () => void;
+  onWordsExtracted?: (words: Array<{ german: string; english: string; }>, source?: string) => void;
 }
 
-// Define the import status type to ensure string literal types can be properly compared
+// Define the import status type as a union type to ensure proper comparison
 type ImportStatus = "extracted" | "imported" | "ready" | "none" | "processing";
 
-const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported }) => {
+const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtracted }) => {
   const { toast } = useToast();
   const [text, setText] = useState<string>("");
-	const [source, setSource] = useState<string>("");
+  const [source, setSource] = useState<string>("");
   const [extractedWords, setExtractedWords] = useState<Array<{ german: string; english: string; difficulty?: number }>>([]);
   const [importStatus, setImportStatus] = useState<ImportStatus>("none");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -51,7 +53,12 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported }) => {
     setExtractedWords(newWords);
     setImportStatus("extracted");
     setIsProcessing(false);
-  }, [text, toast]);
+    
+    // Call the onWordsExtracted prop if provided
+    if (onWordsExtracted && newWords.length > 0) {
+      onWordsExtracted(newWords, source);
+    }
+  }, [text, toast, source, onWordsExtracted]);
   
   const handleImport = async () => {
     if (extractedWords.length === 0) {
