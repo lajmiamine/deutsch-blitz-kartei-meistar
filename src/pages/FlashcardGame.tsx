@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +21,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const FlashcardGame = () => {
   const { toast } = useToast();
@@ -52,6 +52,9 @@ const FlashcardGame = () => {
   // New state for source filtering
   const [availableSources, setAvailableSources] = useState<string[]>([]);
   const [selectedSource, setSelectedSource] = useState<string | undefined>(undefined);
+  
+  // New state for showing word progress
+  const [showWordProgress, setShowWordProgress] = useState(false);
   
   // Available word count options
   const wordCountOptions = [5, 10, 15, 20, 30, 50, "all"];
@@ -449,6 +452,28 @@ const FlashcardGame = () => {
     setGameStarted(false); // Reset game state when changing source
   };
 
+  // End the current game session
+  const endGame = () => {
+    setGameStarted(false);
+    toast({
+      title: "Game Ended",
+      description: `Final score: ${score}/${totalAttempts}`,
+      duration: 3000,
+    });
+  };
+
+  // Toggle word progress view
+  const toggleWordProgress = () => {
+    setShowWordProgress(!showWordProgress);
+  };
+
+  // Calculate word progress percentage
+  const calculateWordProgress = (wordId: string) => {
+    const requiredCorrectAnswers = wordMistakes[wordId] ? 3 : 2;
+    const correctCount = wordCorrectCounts[wordId] || 0;
+    return (correctCount / requiredCorrectAnswers) * 100;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -725,11 +750,86 @@ const FlashcardGame = () => {
                   >
                     Reset Game
                   </Button>
+                  {/* New Word Progress Button */}
+                  <Button
+                    variant={showWordProgress ? "default" : "outline"}
+                    size="sm"
+                    onClick={toggleWordProgress}
+                  >
+                    {showWordProgress ? "Hide Progress" : "Show Word Progress"}
+                  </Button>
+                  {/* New End Game Button */}
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={endGame}
+                  >
+                    End Game
+                  </Button>
                 </div>
               </CardContent>
             </Card>
             
-            {showingWrongWords ? (
+            {/* Word Progress View */}
+            {showWordProgress ? (
+              <Card className="p-4">
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg">Word Progress</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={() => setShowWordProgress(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <CardDescription>Progress for all selected words</CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <ScrollArea className="h-[400px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>German</TableHead>
+                          <TableHead>English</TableHead>
+                          <TableHead>Progress</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {words.map((word) => {
+                          const progress = calculateWordProgress(word.id);
+                          const correctCount = wordCorrectCounts[word.id] || 0;
+                          const requiredCorrect = wordMistakes[word.id] ? 3 : 2;
+                          const isCompleted = correctCount >= requiredCorrect;
+                          
+                          return (
+                            <TableRow key={word.id}>
+                              <TableCell>{word.german}</TableCell>
+                              <TableCell>{word.english}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Progress 
+                                    value={progress} 
+                                    className="h-2 w-24"
+                                    indicatorClassName={isCompleted ? "bg-green-500" : undefined}
+                                  />
+                                  <span className="text-xs whitespace-nowrap">
+                                    {correctCount}/{requiredCorrect} correct
+                                    {isCompleted && " ✓"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </CardContent>
+                <CardFooter className="flex justify-center p-4">
+                  <Button onClick={() => setShowWordProgress(false)}>
+                    Continue Practicing
+                  </Button>
+                </CardFooter>
+              </Card>
+            ) : showingWrongWords ? (
               <Card className="p-4">
                 <CardHeader className="p-4 pb-2">
                   <div className="flex justify-between items-center">
