@@ -160,14 +160,6 @@ const FlashcardGame = () => {
     });
   };
 
-  // Handle removing a word
-  const handleRemoveWord = (wordId: string) => {
-    // For now this is just a stub, you may implement actual word removal later
-    console.log(`Word with id ${wordId} would be removed`);
-    // Optionally, remove it from the filtered words and go to next card
-    handleNextCard();
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -277,10 +269,9 @@ const FlashcardGame = () => {
             <FlashcardComponent
               word={filteredWords[currentWordIndex]}
               direction={direction}
-              onCorrect={handleAnswerChecked}
+              onCorrect={(wordId) => handleAnswerChecked(wordId, true)}
               onIncorrect={(wordId) => handleAnswerChecked(wordId, false)}
               onSkip={handleNextCard}
-              onRemove={handleRemoveWord}
             />
           </div>
         ) : (

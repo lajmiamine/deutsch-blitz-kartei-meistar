@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,7 @@ interface FlashcardComponentProps {
   onCorrect: (wordId: string) => void;
   onIncorrect: (wordId: string) => void;
   onSkip: () => void;
-  onRemove: (wordId: string) => void;
+  onRemove?: (wordId: string) => void;  // Making onRemove optional
   direction: "german-to-english" | "english-to-german";
 }
 
@@ -76,7 +75,7 @@ const FlashcardComponent = ({
   };
 
   const handleRemoveWord = () => {
-    if (confirm(`Are you sure you want to remove "${word.german}" from your vocabulary?`)) {
+    if (onRemove && confirm(`Are you sure you want to remove "${word.german}" from your vocabulary?`)) {
       onRemove(word.id);
     }
   };
@@ -127,15 +126,17 @@ const FlashcardComponent = ({
                   <p className="text-sm text-muted-foreground">Hint: {hint}</p>
                 )}
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-red-500 hover:text-red-700" 
-                onClick={handleRemoveWord}
-                title="Remove this word from your vocabulary"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {onRemove && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-red-500 hover:text-red-700" 
+                  onClick={handleRemoveWord}
+                  title="Remove this word from your vocabulary"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             
             <div className="w-full space-y-4">
@@ -176,15 +177,17 @@ const FlashcardComponent = ({
                 <h3 className="text-2xl font-bold">{promptWord}</h3>
                 {sourceDisplay}
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-red-500 hover:text-red-700" 
-                onClick={handleRemoveWord}
-                title="Remove this word from your vocabulary"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {onRemove && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-red-500 hover:text-red-700" 
+                  onClick={handleRemoveWord}
+                  title="Remove this word from your vocabulary"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             
             <div className="space-y-1 text-center">
@@ -207,7 +210,7 @@ const FlashcardComponent = ({
               </div>
             )}
             
-            <Button onClick={onCorrect.bind(null, word.id)}>Next Word</Button>
+            <Button onClick={onSkip}>Next Word</Button>
           </div>
         </Card>
       </div>
