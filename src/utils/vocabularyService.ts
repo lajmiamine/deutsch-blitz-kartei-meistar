@@ -1,0 +1,157 @@
+
+export interface VocabularyWord {
+  id: string;
+  german: string;
+  english: string;
+  approved: boolean;
+  difficulty: number;  // 1-easy, 2-medium, 3-hard
+  timesCorrect: number;
+  timesIncorrect: number;
+}
+
+const LOCAL_STORAGE_KEY = 'german_vocabulary';
+
+// Sample vocabulary to start with
+const sampleVocabulary: VocabularyWord[] = [
+  { id: '1', german: 'Haus', english: 'house', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '2', german: 'Katze', english: 'cat', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '3', german: 'Hund', english: 'dog', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '4', german: 'Buch', english: 'book', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '5', german: 'Apfel', english: 'apple', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '6', german: 'Fenster', english: 'window', approved: true, difficulty: 2, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '7', german: 'Straße', english: 'street', approved: true, difficulty: 2, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '8', german: 'Blume', english: 'flower', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '9', german: 'Wasser', english: 'water', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '10', german: 'Tisch', english: 'table', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
+];
+
+// Initialize localStorage with sample vocabulary if empty
+const initializeVocabulary = (): void => {
+  const existingVocabulary = localStorage.getItem(LOCAL_STORAGE_KEY);
+  if (!existingVocabulary) {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sampleVocabulary));
+  }
+};
+
+// Get all vocabulary words
+export const getVocabulary = (): VocabularyWord[] => {
+  initializeVocabulary();
+  const vocabularyString = localStorage.getItem(LOCAL_STORAGE_KEY);
+  return vocabularyString ? JSON.parse(vocabularyString) : [];
+};
+
+// Get all approved vocabulary words
+export const getApprovedVocabulary = (): VocabularyWord[] => {
+  const vocabulary = getVocabulary();
+  return vocabulary.filter(word => word.approved);
+};
+
+// Add a new vocabulary word
+export const addVocabularyWord = (german: string, english: string, approved: boolean = false): void => {
+  const vocabulary = getVocabulary();
+  const newWord: VocabularyWord = {
+    id: Date.now().toString(),
+    german,
+    english,
+    approved,
+    difficulty: 1,
+    timesCorrect: 0,
+    timesIncorrect: 0
+  };
+  vocabulary.push(newWord);
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(vocabulary));
+};
+
+// Update approval status of a word
+export const updateWordApproval = (id: string, approved: boolean): void => {
+  const vocabulary = getVocabulary();
+  const updatedVocabulary = vocabulary.map(word => {
+    if (word.id === id) {
+      return { ...word, approved };
+    }
+    return word;
+  });
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+};
+
+// Update a vocabulary word
+export const updateVocabularyWord = (id: string, german: string, english: string): void => {
+  const vocabulary = getVocabulary();
+  const updatedVocabulary = vocabulary.map(word => {
+    if (word.id === id) {
+      return { ...word, german, english };
+    }
+    return word;
+  });
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+};
+
+// Delete a vocabulary word
+export const deleteVocabularyWord = (id: string): void => {
+  const vocabulary = getVocabulary();
+  const updatedVocabulary = vocabulary.filter(word => word.id !== id);
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+};
+
+// Add multiple vocabulary words (e.g., from PDF import)
+export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string }>): void => {
+  const vocabulary = getVocabulary();
+  
+  const newWords = words.map(word => ({
+    id: Date.now() + Math.random().toString(36).substring(2, 8),
+    german: word.german,
+    english: word.english,
+    approved: false, // New words need approval
+    difficulty: 1,
+    timesCorrect: 0,
+    timesIncorrect: 0
+  }));
+  
+  const updatedVocabulary = [...vocabulary, ...newWords];
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+  
+  return;
+};
+
+// Update word statistics after a flashcard attempt
+export const updateWordStatistics = (id: string, wasCorrect: boolean): void => {
+  const vocabulary = getVocabulary();
+  const updatedVocabulary = vocabulary.map(word => {
+    if (word.id === id) {
+      const timesCorrect = wasCorrect ? word.timesCorrect + 1 : word.timesCorrect;
+      const timesIncorrect = wasCorrect ? word.timesIncorrect : word.timesIncorrect + 1;
+      
+      // Adjust difficulty based on correct/incorrect ratio
+      let newDifficulty = word.difficulty;
+      const totalAttempts = timesCorrect + timesIncorrect;
+      
+      if (totalAttempts >= 3) {
+        const correctRatio = timesCorrect / totalAttempts;
+        if (correctRatio > 0.8) newDifficulty = 1; // Easy
+        else if (correctRatio > 0.5) newDifficulty = 2; // Medium
+        else newDifficulty = 3; // Hard
+      }
+      
+      return { 
+        ...word, 
+        timesCorrect, 
+        timesIncorrect, 
+        difficulty: newDifficulty 
+      };
+    }
+    return word;
+  });
+  
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+};
+
+// Get vocabulary words based on difficulty
+export const getVocabularyByDifficulty = (difficulty: number): VocabularyWord[] => {
+  const vocabulary = getApprovedVocabulary();
+  return vocabulary.filter(word => word.difficulty === difficulty);
+};
+
+// Clear all vocabulary
+export const clearVocabulary = (): void => {
+  localStorage.removeItem(LOCAL_STORAGE_KEY);
+};
