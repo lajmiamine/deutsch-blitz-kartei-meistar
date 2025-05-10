@@ -402,12 +402,13 @@ const FlashcardGame = () => {
     resetSessionProgress();
     
     // Apply session mastery status to filtered words (all words start unmastered in a new game)
+    // Important: Make sure all words start with mastered=false and reset all progress counters
     const wordsWithSessionStatus = filteredWords.map(word => ({
       ...word,
-      mastered: false,
-      timesCorrect: 0,
-      timesIncorrect: 0,
-      correctStreak: 0
+      mastered: false,  // Explicitly set to false for all words
+      timesCorrect: 0,  // Reset correct count
+      timesIncorrect: 0, // Reset incorrect count
+      correctStreak: 0   // Reset streak count
     }));
     
     // Set all words as unmastered at the start of a new game
@@ -423,7 +424,7 @@ const FlashcardGame = () => {
       setCurrentWordIndex(0);
     }
     
-    // Save the filtered words for this game session
+    // Save the filtered words for this game session with all mastery reset
     setGameSessionWords(wordsWithSessionStatus);
     
     toast({
