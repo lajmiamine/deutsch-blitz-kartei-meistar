@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import Navbar from "@/components/Navbar";
-import PDFUploader from "@/components/PDFUploader";
+import TextUploader from "@/components/TextUploader";
 import VocabularyList from "@/components/VocabularyList";
 import {
   VocabularyWord,
@@ -39,6 +38,17 @@ const AdminPanel = () => {
     
     loadVocabulary();
   }, []);
+
+  const handleTextWordsExtracted = (words: Array<{ german: string; english: string }>) => {
+    addMultipleVocabularyWords(words);
+    setVocabulary(getVocabulary());
+    
+    toast({
+      title: "Words Imported",
+      description: `Added ${words.length} words from text file. They need approval before being used in flashcards.`,
+      duration: 5000,
+    });
+  };
 
   const handleAddWord = () => {
     if (newGerman.trim() && newEnglish.trim()) {
@@ -97,17 +107,6 @@ const AdminPanel = () => {
     });
   };
 
-  const handlePDFWordsExtracted = (words: Array<{ german: string; english: string }>) => {
-    addMultipleVocabularyWords(words);
-    setVocabulary(getVocabulary());
-    
-    toast({
-      title: "Words Imported",
-      description: `Added ${words.length} words from PDF. They need approval before being used in flashcards.`,
-      duration: 5000,
-    });
-  };
-
   const handleResetVocabulary = () => {
     if (window.confirm("Are you sure you want to reset all vocabulary? This cannot be undone.")) {
       clearVocabulary();
@@ -148,7 +147,7 @@ const AdminPanel = () => {
         <Tabs defaultValue="vocabulary" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="vocabulary">Vocabulary Management</TabsTrigger>
-            <TabsTrigger value="pdf">Import from PDF</TabsTrigger>
+            <TabsTrigger value="textimport">Import from Text</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
           
@@ -188,20 +187,20 @@ const AdminPanel = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="pdf">
+          <TabsContent value="textimport">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <PDFUploader onWordsExtracted={handlePDFWordsExtracted} />
+              <TextUploader onWordsExtracted={handleTextWordsExtracted} />
               
               <Card>
                 <CardHeader>
-                  <CardTitle>PDF Import Instructions</CardTitle>
+                  <CardTitle>Text Import Instructions</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="mb-4 text-muted-foreground">
-                    Upload PDF files containing German-English vocabulary lists. The system will attempt to extract word pairs.
+                    Upload text files containing words you want to learn. The system will extract words that are 4 letters or longer.
                   </p>
                   <p className="mb-4 text-muted-foreground">
-                    For best results, use PDFs with clear formatting where German words and their English translations are consistently organized.
+                    Select the source language of your text and the target language for translations. Review the extracted words and select which ones you want to import.
                   </p>
                   <p className="text-muted-foreground">
                     <strong>Note:</strong> After import, you'll need to approve the words in the Vocabulary Management section before they appear in flashcards.
