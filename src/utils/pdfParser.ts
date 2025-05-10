@@ -35,13 +35,30 @@ const extractWordsFromText = (text: string, filename: string): Array<{ german: s
   const result: Array<{ german: string; english: string }> = [];
   const filenameHint = filename.toLowerCase();
   
-  // Try to detect common patterns in the text that might indicate word pairs
-  // This is a simplified approach - real PDF parsing would be more robust
+  // Improved approach for dialogue transcripts
   
-  // Look for patterns like "word - translation" or "word : translation"
+  // First, try to find words that look German (containing German-specific characters)
+  const germanWordRegex = /\b[A-Za-zäöüÄÖÜß]{3,}\b/g;
+  const potentialGermanWords = [...new Set(text.match(germanWordRegex) || [])];
+  
+  // Filter out common stop words and non-German looking words
+  const filteredWords = potentialGermanWords.filter(word => {
+    // Skip words that look like English (no German-specific characters)
+    const hasGermanCharacters = /[äöüÄÖÜß]/.test(word) || isLikelyGermanWord(word);
+    // Skip very short words (less than 3 characters)
+    const isLongEnough = word.length >= 3;
+    // Skip very common words that might be in both languages
+    const isNotCommonWord = !["der", "die", "das", "und", "ist", "ein", "eine", "zu", "in", "mit", "für", "auf", "ich", "du", "er", "sie", "es"].includes(word.toLowerCase());
+    
+    return hasGermanCharacters && isLongEnough && isNotCommonWord;
+  });
+  
+  // First try to extract using patterns
   const patterns = [
     /([A-Za-zäöüÄÖÜß]+)\s*[-:]\s*([A-Za-z]+)/g,
-    /([A-Za-zäöüÄÖÜß]+)\s*=\s*([A-Za-z]+)/g
+    /([A-Za-zäöüÄÖÜß]+)\s*=\s*([A-Za-z]+)/g,
+    // Add more patterns specifically for dialogue transcripts
+    /\b([A-Za-zäöüÄÖÜß]{3,})\s*\(([A-Za-z\s]+)\)/g,  // Words with translations in parentheses
   ];
   
   let foundMatches = false;
@@ -63,11 +80,46 @@ const extractWordsFromText = (text: string, filename: string): Array<{ german: s
     }
   }
   
-  // If we couldn't extract words using patterns, fallback to word lists based on the file content and name
-  if (!foundMatches) {
-    // Generate words based on the file content and filename
-    const wordList = generateWordList(text, filenameHint);
-    result.push(...wordList);
+  // If we couldn't extract enough words using patterns, use the filtered German words
+  if (!foundMatches || result.length < 5) {
+    // Take up to 20 likely German words
+    const wordsToAdd = filteredWords.slice(0, 20);
+    
+    wordsToAdd.forEach(germanWord => {
+      // Skip words already added
+      if (!result.some(item => item.german === germanWord)) {
+        const mockTranslation = mockTranslate(germanWord);
+        result.push({ german: germanWord, english: mockTranslation });
+      }
+    });
+    
+    foundMatches = result.length > 0;
+  }
+  
+  // If we still couldn't extract words, use dialogue-specific extraction
+  if (!foundMatches || result.length < 5) {
+    // Look for dialogue patterns - sentences with quotation marks
+    const dialogueLines = text.match(/["'](.+?)["']/g) || [];
+    
+    // Extract words from dialogue lines
+    const dialogueWords = new Set<string>();
+    dialogueLines.forEach(line => {
+      const words = line.match(/\b[A-Za-zäöüÄÖÜß]{3,}\b/g) || [];
+      words.forEach(word => {
+        if (isLikelyGermanWord(word)) {
+          dialogueWords.add(word);
+        }
+      });
+    });
+    
+    // Add dialogue words to result
+    [...dialogueWords].slice(0, 15).forEach(germanWord => {
+      // Skip words already added
+      if (!result.some(item => item.german === germanWord)) {
+        const mockTranslation = mockTranslate(germanWord);
+        result.push({ german: germanWord, english: mockTranslation });
+      }
+    });
   }
   
   // If we still have no words, use the backup sample words
@@ -78,29 +130,29 @@ const extractWordsFromText = (text: string, filename: string): Array<{ german: s
   return result;
 };
 
-// Helper function to generate word pairs based on text content
-const generateWordList = (text: string, filenameHint: string): Array<{ german: string; english: string }> => {
-  const result: Array<{ german: string; english: string }> = [];
+// Helper function to determine if a word is likely German
+const isLikelyGermanWord = (word: string): boolean => {
+  // Some heuristics for German words
+  const lowercaseWord = word.toLowerCase();
   
-  // Extract unique words with German characters (simplified approach)
-  const germanWords = [...new Set(
-    text.match(/[A-Za-zäöüÄÖÜß]{3,}/g) || []
-  )].slice(0, 15); // Limit to 15 words
+  // Check for common German endings
+  const germanEndings = ['ung', 'heit', 'keit', 'schaft', 'chen', 'lein', 'lich', 'bar', 'sam', 'haft'];
+  if (germanEndings.some(ending => lowercaseWord.endsWith(ending))) {
+    return true;
+  }
   
-  // Map German words to English translations based on common patterns or dictionaries
-  // This is highly simplified - a real implementation would use a translation API or dictionary
-  germanWords.forEach(word => {
-    // Mock translation logic - in a real app, you'd use a dictionary or API
-    const mockTranslation = mockTranslate(word);
-    result.push({ german: word, english: mockTranslation });
-  });
+  // Check for common German letter combinations
+  const germanCombinations = ['sch', 'ch', 'ck', 'tz', 'ei', 'eu', 'äu'];
+  if (germanCombinations.some(combo => lowercaseWord.includes(combo))) {
+    return true;
+  }
   
-  return result;
+  return false;
 };
 
 // Mock translation function (in a real app, you'd use a dictionary or API)
 const mockTranslate = (germanWord: string): string => {
-  // This is just a simple mock - in reality you'd use a proper translation mechanism
+  // Expanded German-English dictionary
   const commonWords: Record<string, string> = {
     "Haus": "house",
     "Katze": "cat",
@@ -121,7 +173,48 @@ const mockTranslate = (germanWord: string): string => {
     "Brot": "bread",
     "Milch": "milk",
     "Stadt": "city",
-    "Land": "country"
+    "Land": "country",
+    "Straße": "street",
+    "Haus": "house",
+    "Zeit": "time",
+    "Jahr": "year",
+    "Tag": "day",
+    "Nacht": "night",
+    "Hand": "hand",
+    "Kopf": "head",
+    "Auge": "eye",
+    "Ohr": "ear",
+    "Mund": "mouth",
+    "Nase": "nose",
+    "Herz": "heart",
+    "Freund": "friend",
+    "Familie": "family",
+    "Arbeit": "work",
+    "Geld": "money",
+    "Essen": "food",
+    "Trinken": "drink",
+    "Liebe": "love",
+    "Musik": "music",
+    "Film": "movie",
+    "Buch": "book",
+    "Spiel": "game",
+    "Sport": "sport",
+    "Ball": "ball",
+    "Karte": "map",
+    "Handy": "mobile phone",
+    "Computer": "computer",
+    "Internet": "internet",
+    "Schön": "beautiful",
+    "Gut": "good",
+    "Schlecht": "bad",
+    "Groß": "big",
+    "Klein": "small",
+    "Alt": "old",
+    "Neu": "new",
+    "Schnell": "fast",
+    "Langsam": "slow",
+    "Woche": "week",
+    "Monat": "month"
   };
   
   // Check if we have a translation for this word
@@ -129,11 +222,20 @@ const mockTranslate = (germanWord: string): string => {
     return commonWords[germanWord];
   }
   
-  // Otherwise generate a mock translation
-  return `${germanWord.toLowerCase()}-en`;
+  // Check case-insensitive match
+  const matchKey = Object.keys(commonWords).find(
+    key => key.toLowerCase() === germanWord.toLowerCase()
+  );
+  
+  if (matchKey) {
+    return commonWords[matchKey];
+  }
+  
+  // Otherwise generate a reasonable mock translation
+  return `${germanWord}-en`;
 };
 
-// Fallback word lists based on filename hints
+// Fallback word lists based on filename hints - keep this as backup
 const getBackupWords = (filenameHint: string): Array<{ german: string; english: string }> => {
   if (filenameHint.includes("basic")) {
     return [

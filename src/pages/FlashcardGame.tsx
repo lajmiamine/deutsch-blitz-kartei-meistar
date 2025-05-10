@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,10 +77,10 @@ const FlashcardGame = () => {
     loadWords();
   }, [loadWords]);
 
-  // Check if we've completed all words (all words have been answered correctly 3 times)
+  // Check if we've completed all words (all words have been answered correctly 2 times)
   useEffect(() => {
     if (gameStarted && words.length > 0) {
-      const allWordsCompleted = words.every(word => (wordCorrectCounts[word.id] || 0) >= 3);
+      const allWordsCompleted = words.every(word => (wordCorrectCounts[word.id] || 0) >= 2);
       
       if (allWordsCompleted) {
         toast({
@@ -172,8 +171,8 @@ const FlashcardGame = () => {
 
   // Function to determine the next word
   const goToNextWord = () => {
-    // Filter out words that have been answered correctly 3 times
-    const remainingWords = words.filter(word => (wordCorrectCounts[word.id] || 0) < 3);
+    // Filter out words that have been answered correctly 2 times
+    const remainingWords = words.filter(word => (wordCorrectCounts[word.id] || 0) < 2);
     
     if (remainingWords.length === 0) {
       // All words have been completed
@@ -184,8 +183,8 @@ const FlashcardGame = () => {
     let nextIndex = (currentWordIndex + 1) % words.length;
     let attempts = 0;
     
-    // Skip words that have been answered correctly 3 times
-    while ((wordCorrectCounts[words[nextIndex].id] || 0) >= 3 && attempts < words.length) {
+    // Skip words that have been answered correctly 2 times
+    while ((wordCorrectCounts[words[nextIndex].id] || 0) >= 2 && attempts < words.length) {
       nextIndex = (nextIndex + 1) % words.length;
       attempts++;
     }
@@ -234,8 +233,8 @@ const FlashcardGame = () => {
     });
   };
 
-  // Count how many words have been mastered (answered correctly 3 times)
-  const masteredWordCount = words.filter(word => (wordCorrectCounts[word.id] || 0) >= 3).length;
+  // Count how many words have been mastered (answered correctly 2 times)
+  const masteredWordCount = words.filter(word => (wordCorrectCounts[word.id] || 0) >= 2).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -390,7 +389,7 @@ const FlashcardGame = () => {
                             <p className="text-sm text-muted-foreground">{word.english}</p>
                           </div>
                           <Badge className="bg-amber-500">
-                            {(wordCorrectCounts[word.id] || 0)}/3 Correct
+                            {(wordCorrectCounts[word.id] || 0)}/2 Correct
                           </Badge>
                         </div>
                       ))}
