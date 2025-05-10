@@ -873,6 +873,24 @@ const FlashcardGame = () => {
             </CardContent>
           </Card>
         )}
+        
+        {/* Game Complete Message - shown when all words are mastered but game is still active */}
+        {gameActive && unmasteredWords.length === 0 && (
+          <Card className="mb-8 dark:bg-gray-800 dark:border-gray-700">
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <Trophy className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold mb-2 dark:text-white">All Words Mastered!</h3>
+                <p className="text-muted-foreground mb-6 dark:text-gray-300">
+                  Congratulations! You've mastered all the words in this session.
+                </p>
+                <Button onClick={endGame} size="lg" variant="default">
+                  End Game & See Results
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
