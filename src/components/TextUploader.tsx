@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
-import { XCircle, Upload, Info } from "lucide-react";
+import { XCircle, Upload, Info, Edit, Check } from "lucide-react";
 import { extractVocabularyFromText } from "@/utils/textParser";
 import { 
   Select, 
@@ -27,10 +27,18 @@ interface TextUploaderProps {
 // Define the import status type as a union type to ensure proper comparison
 type ImportStatus = "extracted" | "imported" | "ready" | "none" | "processing";
 
+interface ExtractedWord {
+  german: string;
+  english: string;
+  difficulty?: number;
+  isEditing?: boolean;
+  isDuplicate?: boolean;
+}
+
 const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtracted }) => {
   const { toast } = useToast();
   const [text, setText] = useState<string>("");
-  const [extractedWords, setExtractedWords] = useState<Array<{ german: string; english: string; difficulty?: number }>>([]);
+  const [extractedWords, setExtractedWords] = useState<ExtractedWord[]>([]);
   const [importStatus, setImportStatus] = useState<ImportStatus>("none");
   const [isProcessing, setIsProcessing] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -55,21 +63,26 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       extractVocabularyFromText(file, 'de', 'en')
         .then(parsedWords => {
           // Apply the selected difficulty to all words
-          const wordsWithDifficulty = parsedWords.map(word => ({
-            ...word,
-            difficulty: selectedDifficulty
-          }));
-          
-          // Check for duplicates
-          let duplicates = 0;
-          wordsWithDifficulty.forEach(word => {
-            if (getExistingWordByGerman(word.german)) {
-              duplicates++;
-            }
+          const wordsWithDifficulty: ExtractedWord[] = parsedWords.map(word => {
+            const isDuplicate = !!getExistingWordByGerman(word.german);
+            return {
+              ...word,
+              difficulty: selectedDifficulty,
+              isDuplicate
+            };
           });
+          
+          // Count duplicates
+          const duplicates = wordsWithDifficulty.filter(word => word.isDuplicate).length;
           setDuplicateCount(duplicates);
           
-          setExtractedWords(wordsWithDifficulty);
+          // Sort words to show non-duplicates first
+          const sortedWords = [...wordsWithDifficulty].sort((a, b) => {
+            if (a.isDuplicate === b.isDuplicate) return 0;
+            return a.isDuplicate ? 1 : -1; // non-duplicates first
+          });
+          
+          setExtractedWords(sortedWords);
           setImportStatus("extracted");
           
           // Call the onWordsExtracted prop if provided
@@ -93,27 +106,33 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       // Process text input (existing functionality)
       // Basic regex to split lines and extract words
       const lines = text.split('\n').filter(line => line.trim() !== '');
-      const newWords: Array<{ german: string; english: string; difficulty?: number }> = [];
-      let duplicates = 0;
+      const newWords: ExtractedWord[] = [];
       
       lines.forEach(line => {
         const parts = line.split('-').map(part => part.trim());
         if (parts.length === 2) {
           const [german, english] = parts;
-          // Check if this is a duplicate
-          if (getExistingWordByGerman(german)) {
-            duplicates++;
-          }
+          const isDuplicate = !!getExistingWordByGerman(german);
           newWords.push({ 
             german, 
             english, 
-            difficulty: selectedDifficulty 
+            difficulty: selectedDifficulty,
+            isDuplicate
           });
         }
       });
       
+      // Count duplicates
+      const duplicates = newWords.filter(word => word.isDuplicate).length;
       setDuplicateCount(duplicates);
-      setExtractedWords(newWords);
+      
+      // Sort words to show non-duplicates first
+      const sortedWords = [...newWords].sort((a, b) => {
+        if (a.isDuplicate === b.isDuplicate) return 0;
+        return a.isDuplicate ? 1 : -1; // non-duplicates first
+      });
+      
+      setExtractedWords(sortedWords);
       setImportStatus("extracted");
       setIsProcessing(false);
       
@@ -137,9 +156,12 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setIsProcessing(true);
     setImportStatus("processing");
     
+    // Filter out duplicates before importing
+    const wordsToImport = extractedWords.filter(word => !word.isDuplicate);
+    
     // Use the filename as source for file imports, or "Text Input" for text
     const source = file ? file.name.replace(/\.[^/.]+$/, "") : "Text Input";
-    const { added, skipped } = addMultipleVocabularyWords(extractedWords, source);
+    const { added, skipped } = addMultipleVocabularyWords(wordsToImport, source);
     
     setImportStatus("imported");
     setIsProcessing(false);
@@ -172,6 +194,11 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   const handleRemoveWord = (index: number) => {
     const updatedWords = [...extractedWords];
     updatedWords.splice(index, 1);
+    
+    // Recalculate duplicate count
+    const duplicates = updatedWords.filter(word => word.isDuplicate).length;
+    setDuplicateCount(duplicates);
+    
     setExtractedWords(updatedWords);
   };
 
@@ -194,6 +221,43 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       }));
       setExtractedWords(updatedWords);
     }
+  };
+  
+  const handleEditWord = (index: number) => {
+    const updatedWords = [...extractedWords];
+    updatedWords[index] = {
+      ...updatedWords[index],
+      isEditing: true
+    };
+    setExtractedWords(updatedWords);
+  };
+  
+  const handleSaveEdit = (index: number, newEnglish: string) => {
+    const updatedWords = [...extractedWords];
+    updatedWords[index] = {
+      ...updatedWords[index],
+      english: newEnglish,
+      isEditing: false
+    };
+    setExtractedWords(updatedWords);
+  };
+  
+  const handleCancelEdit = (index: number) => {
+    const updatedWords = [...extractedWords];
+    updatedWords[index] = {
+      ...updatedWords[index],
+      isEditing: false
+    };
+    setExtractedWords(updatedWords);
+  };
+  
+  const handleTranslationChange = (index: number, value: string) => {
+    const updatedWords = [...extractedWords];
+    updatedWords[index] = {
+      ...updatedWords[index],
+      english: value
+    };
+    setExtractedWords(updatedWords);
   };
 
   // Get the number of words that will be imported (total - duplicates)
@@ -293,23 +357,62 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
             </div>
             <ul className="list-none pl-0 border rounded-md divide-y max-h-60 overflow-y-auto">
               {extractedWords.map((word, index) => {
-                const isExisting = getExistingWordByGerman(word.german);
                 return (
                   <li 
                     key={index} 
                     className={`flex items-center justify-between py-2 px-3 ${
-                      isExisting ? 'bg-red-50 dark:bg-red-900/20' : ''
+                      word.isDuplicate ? 'bg-red-50 dark:bg-red-900/20' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      {isExisting && (
-                        <Info className="h-4 w-4 text-red-500" />
+                    <div className="flex-grow flex items-center gap-2">
+                      {word.isDuplicate && (
+                        <Info className="h-4 w-4 text-red-500 flex-shrink-0" />
                       )}
-                      <span className={isExisting ? 'text-red-500' : ''}>
-                        {word.german} - {word.english}
-                      </span>
-                      {isExisting && (
-                        <Badge variant="outline" className="ml-2 text-xs">
+                      <div className="flex-grow">
+                        <div className="font-medium">{word.german}</div>
+                        {word.isEditing ? (
+                          <div className="flex items-center gap-2 mt-1">
+                            <Input
+                              value={word.english}
+                              onChange={(e) => handleTranslationChange(index, e.target.value)}
+                              className="h-8 py-1 text-sm"
+                              autoFocus
+                            />
+                            <Button 
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-green-500"
+                              onClick={() => handleSaveEdit(index, word.english)}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-gray-500"
+                              onClick={() => handleCancelEdit(index)}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={word.isDuplicate ? 'text-red-500' : ''}>
+                              {word.english}
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                              onClick={() => handleEditWord(index)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      {word.isDuplicate && (
+                        <Badge variant="outline" className="ml-2 text-xs flex-shrink-0">
                           Duplicate
                         </Badge>
                       )}
@@ -317,7 +420,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
                       onClick={() => handleRemoveWord(index)}
                     >
                       <XCircle className="h-4 w-4" />
