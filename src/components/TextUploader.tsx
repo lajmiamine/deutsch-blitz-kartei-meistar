@@ -6,67 +6,72 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/components/ui/use-toast";
 import { extractVocabularyFromText, ParsedWord } from "@/utils/textParser";
 import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
+import { Text } from "lucide-react";
 
 interface TextUploaderProps {
-  onWordsAdded?: (count: number) => void;
+  onWordsExtracted?: (words: Array<{ german: string; english: string }>) => void;
 }
 
-const TextUploader = ({ onWordsAdded }: TextUploaderProps) => {
+const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const { toast } = useToast();
+  const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [extractedWords, setExtractedWords] = useState<ParsedWord[]>([]);
   const [importStatus, setImportStatus] = useState<"idle" | "processing" | "extracted" | "imported">("idle");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Check if it's a text file
-    if (!file.name.toLowerCase().endsWith(".txt")) {
-      toast({
-        title: "Invalid File Type",
-        description: "Please upload a .txt file.",
-        variant: "destructive",
-      });
-      return;
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      if (selectedFile.name.toLowerCase().endsWith(".txt")) {
+        setFile(selectedFile);
+        setError(null);
+        setImportStatus("idle");
+        setExtractedWords([]);
+      } else {
+        setFile(null);
+        setError("Please upload a .txt file.");
+      }
     }
-    
-    setUploadedFile(file);
-    setImportStatus("idle");
-    setExtractedWords([]);
   };
 
   const handleExtractWords = async () => {
-    if (!uploadedFile) {
-      toast({
-        title: "No File Selected",
-        description: "Please select a text file first.",
-        variant: "destructive",
-      });
+    if (!file) {
+      setError("No file selected.");
       return;
     }
 
     setIsUploading(true);
+    setError(null);
+    setUploadProgress(0);
     setImportStatus("processing");
+    
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      setUploadProgress((prev) => (prev < 90 ? prev + 10 : prev));
+    }, 200);
 
     try {
-      const words = await extractVocabularyFromText(uploadedFile);
+      const words = await extractVocabularyFromText(file);
       setExtractedWords(words);
       setImportStatus("extracted");
+      setUploadProgress(100);
       
       toast({
         title: "Words Extracted",
         description: `Successfully extracted ${words.length} words from the text file.`,
       });
-    } catch (error) {
-      toast({
-        title: "Extraction Failed",
-        description: error instanceof Error ? error.message : "Failed to extract vocabulary from text file.",
-        variant: "destructive",
-      });
+      
+      if (onWordsExtracted) {
+        onWordsExtracted(words);
+      }
+    } catch (err) {
+      setError("Failed to extract vocabulary from the text file. Please check the file format.");
+      console.error(err);
       setImportStatus("idle");
     } finally {
+      clearInterval(progressInterval);
       setIsUploading(false);
     }
   };
@@ -89,10 +94,6 @@ const TextUploader = ({ onWordsAdded }: TextUploaderProps) => {
         title: "Import Successful",
         description: `${extractedWords.length} words have been added to your vocabulary.`,
       });
-      
-      if (onWordsAdded) {
-        onWordsAdded(extractedWords.length);
-      }
     } catch (error) {
       toast({
         title: "Import Failed",
@@ -113,6 +114,7 @@ const TextUploader = ({ onWordsAdded }: TextUploaderProps) => {
       <CardContent className="space-y-4">
         <div className="flex items-center gap-4">
           <Input
+            id="text"
             type="file"
             accept=".txt"
             onChange={handleFileChange}
@@ -120,12 +122,27 @@ const TextUploader = ({ onWordsAdded }: TextUploaderProps) => {
           />
           <Button
             onClick={handleExtractWords}
-            disabled={!uploadedFile || isUploading}
+            disabled={!file || isUploading}
             className="whitespace-nowrap"
           >
             {isUploading ? "Processing..." : "Extract Words"}
           </Button>
         </div>
+
+        {error && (
+          <div className="bg-destructive/10 text-destructive rounded-md p-3 text-sm">
+            {error}
+          </div>
+        )}
+
+        {uploadProgress > 0 && importStatus === "processing" && (
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div
+              className="bg-german-gold h-2.5 rounded-full"
+              style={{ width: `${uploadProgress}%` }}
+            ></div>
+          </div>
+        )}
 
         {importStatus === "extracted" && (
           <div className="border rounded-md p-4 mt-4">
