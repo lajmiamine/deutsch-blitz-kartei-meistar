@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,8 @@ import {
   getApprovedVocabularyBySource,
   getWordCountByDifficulty
 } from "@/utils/vocabularyService";
+import { CircleCheck, X, RefreshCw, ArrowRight } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 const FlashcardGame = () => {
   const { toast } = useToast();
@@ -31,6 +34,11 @@ const FlashcardGame = () => {
     medium: 0,
     hard: 0
   });
+  
+  // Track session progress
+  const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
+  const [incorrectAnswers, setIncorrectAnswers] = useState<string[]>([]);
+  const [answeredCount, setAnsweredCount] = useState<number>(0);
 
   // Load vocabulary when component mounts
   useEffect(() => {
@@ -126,6 +134,15 @@ const FlashcardGame = () => {
     // Update word statistics
     updateWordStatistics(cardId, wasCorrect);
     
+    // Update session progress
+    setAnsweredCount(prev => prev + 1);
+    
+    if (wasCorrect) {
+      setCorrectAnswers(prev => [...prev, cardId]);
+    } else {
+      setIncorrectAnswers(prev => [...prev, cardId]);
+    }
+    
     // Show feedback
     toast({
       title: wasCorrect ? "Correct!" : "Incorrect",
@@ -159,6 +176,28 @@ const FlashcardGame = () => {
       duration: 2000,
     });
   };
+  
+  const handleResetGame = () => {
+    // Reset all progress tracking
+    setCorrectAnswers([]);
+    setIncorrectAnswers([]);
+    setAnsweredCount(0);
+    
+    // Reset to first card and reshuffle
+    setCurrentWordIndex(0);
+    filterWords();
+    
+    toast({
+      title: "Game Reset",
+      description: "Your progress has been reset and cards have been reshuffled.",
+      duration: 2000,
+    });
+  };
+  
+  // Calculate progress percentage
+  const progressPercentage = filteredWords.length > 0 
+    ? Math.round((answeredCount * 100) / filteredWords.length) 
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -244,6 +283,44 @@ const FlashcardGame = () => {
             </CardContent>
           </Card>
         </div>
+        
+        {/* Progress Tracking Section */}
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Progress</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between text-sm mb-1">
+                <span>Completed: {answeredCount}/{filteredWords.length} words</span>
+                <span>{progressPercentage}%</span>
+              </div>
+              <Progress value={progressPercentage} className="h-2" />
+              
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-1">
+                    <CircleCheck className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">{correctAnswers.length} correct</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <X className="h-4 w-4 text-red-600" />
+                    <span className="text-sm">{incorrectAnswers.length} incorrect</span>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleResetGame}
+                  className="flex items-center gap-1"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Reset Game
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         
         {filteredWords.length > 0 ? (
           <div className="mb-8">
