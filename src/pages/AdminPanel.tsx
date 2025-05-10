@@ -469,81 +469,75 @@ const AdminPanel = () => {
                     </p>
                   </div>
                 ) : (
-                  <ScrollArea className="h-[400px] rounded-md border p-4">
-                    <div className="space-y-2">
-                      {fileSources.map((source) => {
-                        const sourceWords = getVocabularyBySource(source);
-                        const approvedCount = sourceWords.filter(word => word.approved).length;
-                        
-                        return (
-                          <Collapsible
-                            key={source}
-                            open={isSourcesOpen}
-                            onOpenChange={setIsSourcesOpen}
-                            className="border rounded-md"
-                          >
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3">
-                              <div className="flex-shrink-0 max-w-full">
-                                <CollapsibleTrigger asChild>
-                                  <Button variant="ghost" className="p-0 hover:bg-transparent text-left justify-start break-all">
-                                    <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
-                                    <span className="font-medium truncate">
-                                      {source === "all-words" ? "All words" : source}
-                                    </span>
-                                  </Button>
-                                </CollapsibleTrigger>
-                                <div className="text-sm text-muted-foreground mt-1">
+                  <div className="space-y-4">
+                    {fileSources.map((source) => {
+                      const sourceWords = getVocabularyBySource(source);
+                      const approvedCount = sourceWords.filter(word => word.approved).length;
+                      
+                      return (
+                        <div key={source} className="border rounded-md p-6 shadow-sm bg-white">
+                          <div className="flex flex-col space-y-4">
+                            <div className="flex items-start gap-3">
+                              <FileText className="h-5 w-5 text-gray-500 mt-1 flex-shrink-0" />
+                              <div className="flex-grow">
+                                <h3 className="font-medium text-lg break-all">
+                                  {source === "all-words" ? "All words" : source}
+                                </h3>
+                                <p className="text-sm text-muted-foreground mt-1">
                                   {sourceWords.length} words ({approvedCount} approved)
-                                </div>
+                                </p>
                               </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleViewSourceWords(source)}
+                                className="w-full"
+                              >
+                                View Words
+                              </Button>
                               
-                              <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
-                                <Button 
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleViewSourceWords(source)}
-                                  className="flex-shrink-0"
-                                >
-                                  View Words
-                                </Button>
-                                
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => handleCreateSourceFlashcards(source)}
-                                  className="flex-shrink-0"
-                                >
-                                  Create Flashcards
-                                </Button>
-                                
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="flex items-center gap-1 flex-shrink-0"
-                                  onClick={() => handleOpenDifficultyDialog(source)}
-                                >
-                                  <Settings className="h-4 w-4" />
-                                  <span className="hidden sm:inline">Set Difficulty</span>
-                                </Button>
-                                
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="flex items-center gap-1 flex-shrink-0"
-                                  onClick={() => handleOpenRenameDialog(source)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                  <span className="hidden sm:inline">Rename</span>
-                                </Button>
-                                
+                              <Button 
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleCreateSourceFlashcards(source)}
+                                className="w-full bg-amber-500 hover:bg-amber-600"
+                              >
+                                Create Flashcards
+                              </Button>
+                              
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => handleOpenDifficultyDialog(source)}
+                              >
+                                <Settings className="h-4 w-4 mr-2" />
+                                Set Difficulty
+                              </Button>
+                              
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => handleOpenRenameDialog(source)}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Rename
+                              </Button>
+                              
+                              <div className="col-span-2 md:col-span-4 mt-2">
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button 
                                       size="sm" 
                                       variant="destructive"
-                                      className="flex-shrink-0"
+                                      className="flex items-center gap-2"
                                     >
-                                      <Trash className="h-4 w-4 mr-1" />
-                                      <span className="hidden sm:inline">Delete All</span>
+                                      <Trash className="h-4 w-4" />
+                                      Delete All
                                     </Button>
                                   </AlertDialogTrigger>
                                   <AlertDialogContent>
@@ -567,19 +561,11 @@ const AdminPanel = () => {
                                 </AlertDialog>
                               </div>
                             </div>
-                            
-                            <CollapsibleContent className="p-4 pt-0 border-t">
-                              <div className="text-sm space-y-1">
-                                <p><strong>Total Words:</strong> {sourceWords.length}</p>
-                                <p><strong>Approved Words:</strong> {approvedCount}</p>
-                                <p><strong>Pending Approval:</strong> {sourceWords.length - approvedCount}</p>
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
