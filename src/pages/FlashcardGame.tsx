@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +45,6 @@ const FlashcardGame = () => {
   const [wordMistakes, setWordMistakes] = useState<Record<string, boolean>>({});
   
   // State for word count and selection mode
-  // Update the type to include "custom" as a valid value
   const [wordCount, setWordCount] = useState<number | "all" | "custom">(10);
   const [customWordCount, setCustomWordCount] = useState<string>("");
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
@@ -139,10 +137,10 @@ const FlashcardGame = () => {
     const shuffled = [...allWords].sort(() => Math.random() - 0.5);
     
     // Determine the number of words to use
-    let count: number | "all" = wordCount;
+    let count: number | "all" = wordCount === "custom" ? "all" : wordCount;
     
     // If custom count is provided and valid, use it
-    if (customWordCount && !isNaN(parseInt(customWordCount)) && parseInt(customWordCount) > 0) {
+    if (wordCount === "custom" && customWordCount && !isNaN(parseInt(customWordCount)) && parseInt(customWordCount) > 0) {
       count = parseInt(customWordCount);
     }
     
