@@ -339,8 +339,33 @@ const FlashcardGame = () => {
       duration: 2000,
     });
     
-    // Restart the game with the same words
-    startGame();
+    // Apply session mastery status to filtered words (all words start unmastered in a new game)
+    const wordsWithSessionStatus = filteredWords.map(word => ({
+      ...word,
+      mastered: false,  // Explicitly set to false for all words
+      timesCorrect: 0,  // Reset correct count
+      timesIncorrect: 0, // Reset incorrect count
+      correctStreak: 0   // Reset streak count
+    }));
+    
+    // Set all words as unmastered for this reset
+    setUnmasteredWords(wordsWithSessionStatus);
+    console.log("Reset game with unmastered words:", wordsWithSessionStatus.length);
+    
+    // Randomize the first word to show
+    if (wordsWithSessionStatus.length > 0) {
+      const randomIndex = Math.floor(Math.random() * wordsWithSessionStatus.length);
+      setCurrentWordIndex(randomIndex);
+    } else {
+      setCurrentWordIndex(0);
+    }
+    
+    // Update the game session words with all mastery reset
+    setGameSessionWords(wordsWithSessionStatus);
+    
+    // Make sure to reset all session mastery tracking
+    setSessionMasteredWords([]);
+    setSessionWordStats(new Map());
   };
   
   // Reset game progress completely for the session only
