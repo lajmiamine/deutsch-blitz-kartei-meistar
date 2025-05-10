@@ -9,11 +9,11 @@ import { VocabularyWord } from "@/utils/vocabularyService";
 import { Trash2, Star } from "lucide-react";
 
 interface FlashcardComponentProps {
-  word: VocabularyWord;
+  word: VocabularyWord | undefined;  // Make word potentially undefined to handle edge cases
   onCorrect: (wordId: string) => void;
   onIncorrect: (wordId: string) => void;
   onSkip: () => void;
-  onRemove?: (wordId: string) => void;  // Making onRemove optional
+  onRemove?: (wordId: string) => void;
   direction: "german-to-english" | "english-to-german";
 }
 
@@ -30,6 +30,18 @@ const FlashcardComponent = ({
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
   const [hint, setHint] = useState("");
   const [showExplanation, setShowExplanation] = useState(false);
+  
+  // Guard against undefined word object
+  if (!word) {
+    return (
+      <Card className="border-2 p-6 shadow-lg dark:bg-gray-800 dark:border-gray-700">
+        <div className="flex flex-col items-center space-y-6">
+          <p className="text-lg font-medium dark:text-white">Loading flashcard...</p>
+          <Button onClick={onSkip}>Next Card</Button>
+        </div>
+      </Card>
+    );
+  }
 
   // Determine which word to show based on direction
   const promptWord = direction === "german-to-english" ? word.german : word.english;

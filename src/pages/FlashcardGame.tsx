@@ -823,13 +823,28 @@ const FlashcardGame = () => {
               </div>
             </div>
 
-            <FlashcardComponent
-              word={unmasteredWords[currentWordIndex]}
-              direction={direction}
-              onCorrect={(wordId) => handleAnswerChecked(wordId, true)}
-              onIncorrect={(wordId) => handleAnswerChecked(wordId, false)}
-              onSkip={handleNextCard}
-            />
+            {/* Make sure currentWordIndex is valid before rendering FlashcardComponent */}
+            {currentWordIndex >= 0 && currentWordIndex < unmasteredWords.length ? (
+              <FlashcardComponent
+                word={unmasteredWords[currentWordIndex]}
+                direction={direction}
+                onCorrect={(wordId) => handleAnswerChecked(wordId, true)}
+                onIncorrect={(wordId) => handleAnswerChecked(wordId, false)}
+                onSkip={handleNextCard}
+              />
+            ) : (
+              // Fallback if currentWordIndex is invalid
+              <div className="text-center py-8">
+                <p className="text-lg font-medium dark:text-white">
+                  Loading next word...
+                </p>
+                <Button 
+                  onClick={() => selectNextUnmasteredWord()} 
+                  className="mt-4">
+                    Find Next Word
+                </Button>
+              </div>
+            )}
           </div>
         )}
         
