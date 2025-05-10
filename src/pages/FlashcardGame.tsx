@@ -19,7 +19,7 @@ import {
   getVocabularyWithProgress
 } from "@/utils/vocabularyService";
 import { CircleCheck, X, RefreshCw, Play, Trophy, BarChart } from "lucide-react";
-import { Progress as ProgressBar } from "@/components/ui/progress";
+import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -49,6 +49,7 @@ const FlashcardGame = () => {
   const [incorrectAnswers, setIncorrectAnswers] = useState<string[]>([]);
   const [answeredCount, setAnsweredCount] = useState<number>(0);
   const [gameSessionWords, setGameSessionWords] = useState<VocabularyWord[]>([]);
+  const [masteredWords, setMasteredWords] = useState<string[]>([]);
   
   // Game state
   const [gameActive, setGameActive] = useState<boolean>(false);
@@ -167,6 +168,15 @@ const FlashcardGame = () => {
     // Update session progress
     setAnsweredCount(prev => prev + 1);
     
+    // Find the word to check if it became mastered
+    const word = filteredWords.find(w => w.id === cardId);
+    const wasAlreadyMastered = masteredWords.includes(cardId);
+    
+    if (word && word.mastered && !wasAlreadyMastered) {
+      // Word just became mastered in this session
+      setMasteredWords(prev => [...prev, cardId]);
+    }
+    
     if (wasCorrect) {
       setCorrectAnswers(prev => [...prev, cardId]);
     } else {
@@ -202,11 +212,16 @@ const FlashcardGame = () => {
   };
   
   const handleResetGame = () => {
-    resetGameProgress();
-    
-    // Reset to first card and reshuffle
+    // Reset progress but keep the same words
+    setCorrectAnswers([]);
+    setIncorrectAnswers([]);
+    setAnsweredCount(0);
+    setMasteredWords([]);
     setCurrentWordIndex(0);
-    filterWords();
+    
+    // Reshuffle the words
+    const shuffled = [...filteredWords].sort(() => Math.random() - 0.5);
+    setFilteredWords(shuffled);
     
     toast({
       title: "Game Reset",
@@ -220,6 +235,7 @@ const FlashcardGame = () => {
     setCorrectAnswers([]);
     setIncorrectAnswers([]);
     setAnsweredCount(0);
+    setMasteredWords([]);
     setGameActive(false);
     setShowResults(false);
     setGameStartTime(null);
@@ -246,6 +262,7 @@ const FlashcardGame = () => {
     setCorrectAnswers([]);
     setIncorrectAnswers([]);
     setAnsweredCount(0);
+    setMasteredWords([]);
     setCurrentWordIndex(0);
     
     // Save the filtered words for this game session
@@ -264,8 +281,7 @@ const FlashcardGame = () => {
     setShowResults(true);
     setGameEndTime(Date.now());
     
-    // Clear the game session words
-    setGameSessionWords([]);
+    // Keep game session words for stats
   };
   
   // Calculate game statistics
@@ -296,9 +312,9 @@ const FlashcardGame = () => {
     return `${minutes}m ${remainingSeconds}s`;
   };
   
-  // Calculate progress percentage
-  const progressPercentage = filteredWords.length > 0 
-    ? Math.round((answeredCount * 100) / filteredWords.length) 
+  // Calculate mastery progress percentage
+  const masteryProgressPercentage = filteredWords.length > 0 
+    ? Math.round((masteredWords.length * 100) / filteredWords.length) 
     : 0;
 
   // Get text for source display
@@ -425,10 +441,10 @@ const FlashcardGame = () => {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex justify-between text-sm mb-1 dark:text-gray-300">
-                  <span>Completed: {answeredCount}/{filteredWords.length} words</span>
-                  <span>{progressPercentage}%</span>
+                  <span>Mastered: {masteredWords.length}/{filteredWords.length} words</span>
+                  <span>{masteryProgressPercentage}%</span>
                 </div>
-                <ProgressBar value={progressPercentage} className="h-2" />
+                <Progress value={masteryProgressPercentage} className="h-2" />
                 
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-6">
@@ -442,8 +458,8 @@ const FlashcardGame = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {/* Word Progress Dialog - now using gameSessionWords instead of all words */}
-                    <WordProgressDialog words={gameActive ? filteredWords : gameSessionWords} />
+                    {/* Word Progress Dialog */}
+                    <WordProgressDialog words={filteredWords} />
                     
                     {gameActive && (
                       <Button 
