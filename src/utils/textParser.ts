@@ -1,3 +1,4 @@
+
 export interface ParsedWord {
   german: string;
   english: string;
@@ -131,160 +132,22 @@ const extractWords = (text: string): string[] => {
   );
 };
 
-// Use ChatGPT API for translation
+// Translation function using mock/dictionary for demo
+// In a real app, this would use a translation API like Google Translate or DeepL
 const translateWords = async (sourceWords: string[], sourceLanguage: string = 'de', targetLanguage: string = 'en'): Promise<ParsedWord[]> => {
-  // Skip translation if no words to translate
-  if (!sourceWords || sourceWords.length === 0) {
-    return [];
-  }
+  // In a real app, this would call a translation API
+  
+  // Adding translationKey as a proxy for what would be a real API key
+  // This would normally be stored securely in an environment variable
+  const translationKey = 'mock-translation-api-key';
   
   console.log(`Translation requested: ${sourceWords.length} words from ${sourceLanguage} to ${targetLanguage}`);
   
-  // Get the API key from localStorage
-  const apiKey = localStorage.getItem('openai-api-key');
-  
-  const translations: ParsedWord[] = [];
-  
-  try {
-    // If we have an API key, use the ChatGPT API
-    if (apiKey) {
-      // Batch all words to translate in a single API call for efficiency
-      const translationResults = await translateWithChatGPT(sourceWords, sourceLanguage, targetLanguage, apiKey);
-      
-      if (translationResults && translationResults.length === sourceWords.length) {
-        // Map the source words to their translations
-        for (let i = 0; i < sourceWords.length; i++) {
-          if (sourceLanguage === 'de' && targetLanguage === 'en') {
-            translations.push({
-              german: sourceWords[i],
-              english: capitalizeFirstLetter(translationResults[i])
-            });
-          } else if (sourceLanguage === 'en' && targetLanguage === 'de') {
-            translations.push({
-              german: capitalizeFirstLetter(translationResults[i]),
-              english: sourceWords[i]
-            });
-          } else {
-            // For other language pairs
-            translations.push({
-              german: sourceLanguage === 'de' ? sourceWords[i] : capitalizeFirstLetter(translationResults[i]),
-              english: targetLanguage === 'en' ? capitalizeFirstLetter(translationResults[i]) : sourceWords[i]
-            });
-          }
-        }
-        return translations;
-      }
-    }
-    
-    // Fallback to dictionary method if API key is missing or API call failed
-    console.log("Using fallback dictionary translation method");
-    return fallbackTranslation(sourceWords, sourceLanguage, targetLanguage);
-  } catch (error) {
-    console.error("Translation error:", error);
-    // Fallback to dictionary method
-    console.log("Using fallback dictionary translation after error");
-    return fallbackTranslation(sourceWords, sourceLanguage, targetLanguage);
-  }
-};
-
-// Helper function to translate with ChatGPT API
-const translateWithChatGPT = async (
-  words: string[], 
-  sourceLanguage: string, 
-  targetLanguage: string,
-  apiKey: string
-): Promise<string[]> => {
-  // Prepare language names for clearer instructions
-  const languageNames: Record<string, string> = {
-    'de': 'German',
-    'en': 'English',
-    'fr': 'French',
-    'es': 'Spanish',
-    'it': 'Italian'
-  };
-  
-  const sourceLangName = languageNames[sourceLanguage] || sourceLanguage;
-  const targetLangName = languageNames[targetLanguage] || targetLanguage;
-  
-  // Create a prompt that asks for translation of all words at once
-  const prompt = `Translate the following ${sourceLangName} words to ${targetLangName}. 
-Return only the translations in a list format, one translation per line, in the same order as the input.
-Do not include the original words, definitions, or any explanations.
-
-${words.join('\n')}`;
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o', // Using GPT-4o for better translation quality
-        messages: [
-          {
-            role: 'system',
-            content: `You are a professional translator from ${sourceLangName} to ${targetLangName}. Provide accurate, concise translations.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.3 // Lower temperature for more consistent translations
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`OpenAI API Error: ${errorData}`);
-    }
-
-    const data = await response.json();
-    const translationText = data.choices?.[0]?.message?.content;
-    
-    if (!translationText) {
-      throw new Error("No translation content returned from API");
-    }
-
-    // Parse the response - should be one translation per line
-    const translationLines = translationText
-      .split('\n')
-      .filter(line => line.trim() !== '');
-    
-    // Ensure we have the same number of translations as input words
-    if (translationLines.length !== words.length) {
-      console.warn(`Translation count mismatch: got ${translationLines.length}, expected ${words.length}`);
-      
-      // If we have more translations than words, trim the excess
-      if (translationLines.length > words.length) {
-        return translationLines.slice(0, words.length);
-      }
-      
-      // If we have fewer translations, fill in with fallback translations
-      const tempFallback = fallbackTranslation(words, sourceLanguage, targetLanguage);
-      const missingWords = words.slice(translationLines.length);
-      const missingTranslations = missingWords.map((word, idx) => {
-        const fallbackIndex = words.indexOf(word);
-        return tempFallback[fallbackIndex]?.english || `${word}-translated`;
-      });
-      
-      return [...translationLines, ...missingTranslations];
-    }
-    
-    return translationLines;
-  } catch (error) {
-    console.error("ChatGPT translation error:", error);
-    throw error;
-  }
-};
-
-// Fallback translation function using dictionary/mock translation
-const fallbackTranslation = (sourceWords: string[], sourceLanguage: string = 'de', targetLanguage: string = 'en'): ParsedWord[] => {
-  const translations: ParsedWord[] = [];
+  // This is where we would make an API call in a real application
+  // For demonstration, we'll use a dictionary for common DE-EN translations
   
   // Mock translation - Dictionary of common translations
+  // Fix: Properly define the nested dictionary type
   const dictionary: Record<string, Record<string, Record<string, string>>> = {
     'de': {
       'en': {
@@ -294,7 +157,41 @@ const fallbackTranslation = (sourceWords: string[], sourceLanguage: string = 'de
         "Stuhl": "chair",
         "Buch": "book",
         "Auto": "car",
-        // ... keep existing code (common words in the dictionary)
+        "Stadt": "city",
+        "Land": "country",
+        "Wasser": "water",
+        "Feuer": "fire",
+        "Erde": "earth",
+        "Luft": "air",
+        "Baum": "tree",
+        "Blume": "flower",
+        "Tier": "animal",
+        "Hund": "dog",
+        "Katze": "cat",
+        "Mann": "man",
+        "Frau": "woman",
+        "Kind": "child",
+        "Freund": "friend",
+        "Familie": "family",
+        "Eltern": "parents",
+        "Mutter": "mother",
+        "Vater": "father",
+        "Bruder": "brother",
+        "Schwester": "sister",
+        "Schule": "school",
+        "Arbeit": "work",
+        "Zeit": "time",
+        "Jahr": "year",
+        "Monat": "month",
+        "Woche": "week",
+        "Tag": "day",
+        "Nacht": "night",
+        "Morgen": "morning",
+        "Abend": "evening",
+        "Essen": "food",
+        "Wein": "wine",
+        "Bier": "beer",
+        "Brot": "bread",
         "Obst": "fruit",
         "Gemüse": "vegetables"
       },
@@ -325,86 +222,114 @@ const fallbackTranslation = (sourceWords: string[], sourceLanguage: string = 'de
     // Add more language combinations as needed
   };
   
-  // Map the source words to the target language
-  for (const sourceWord of sourceWords) {
-    const sourceWordLower = sourceWord.toLowerCase();
-    let translation = '';
+  // In a real implementation, handle the case when we have API problems
+  // by returning partial results, error messages, etc.
+  
+  const translations: ParsedWord[] = [];
+
+  try {
+    // The actual API call would happen here, something like:
+    // const translationResponse = await fetch('https://translation-api.com/translate', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Authorization': `Bearer ${translationKey}`,
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify({
+    //     q: sourceWords,
+    //     source: sourceLanguage,
+    //     target: targetLanguage,
+    //     format: 'text'
+    //   })
+    // }).then(res => res.json());
     
-    // Check dictionary first using source language
-    if (dictionary[sourceLanguage]?.[targetLanguage]?.[sourceWord]) {
-      translation = dictionary[sourceLanguage][targetLanguage][sourceWord];
-    } else if (dictionary[sourceLanguage]?.[targetLanguage]?.[sourceWordLower]) {
-      translation = dictionary[sourceLanguage][targetLanguage][sourceWordLower];
-    } else {
-      // For demo purposes, create a mock translation
-      // In a real app, the actual translation would come from the API
+    // Map the source words to the target language
+    for (const sourceWord of sourceWords) {
+      const sourceWordLower = sourceWord.toLowerCase();
+      let translation = '';
       
-      // Simple mock algorithm to show that we're "translating"
-      if (sourceLanguage === 'de' && targetLanguage === 'en') {
-        // German to English mock translation
-        translation = sourceWord
-          .replace(/sch/g, 'sh')
-          .replace(/ei/g, 'i')
-          .replace(/eu/g, 'oi')
-          .replace(/ch/g, 'ch')
-          .replace(/ä/g, 'ae')
-          .replace(/ö/g, 'oe')
-          .replace(/ü/g, 'ue')
-          .replace(/ß/g, 'ss');
-          
-        // Add '-en' to the end of some words to make them feel "more English"
-        if (Math.random() > 0.7) {
-          translation += 'en';
-        }
-      } else if (sourceLanguage === 'en' && targetLanguage === 'de') {
-        // English to German mock translation
-        translation = sourceWord
-          .replace(/sh/g, 'sch')
-          .replace(/th/g, 't')
-          .replace(/w/g, 'v')
-          .replace(/i/g, 'ie')
-          .replace(/y$/, 'ie');
-          
-        // Occasionally add typical German word endings
-        if (Math.random() > 0.7) {
-          translation += 'en';
-        } else if (Math.random() > 0.5) {
-          translation += 'ung';
-        }
+      // Check dictionary first using source language
+      if (dictionary[sourceLanguage]?.[targetLanguage]?.[sourceWord]) {
+        translation = dictionary[sourceLanguage][targetLanguage][sourceWord];
+      } else if (dictionary[sourceLanguage]?.[targetLanguage]?.[sourceWordLower]) {
+        translation = dictionary[sourceLanguage][targetLanguage][sourceWordLower];
       } else {
-        // Generic "translation" - just add a language-specific prefix
-        const prefixes: Record<string, string> = {
-          'de': 'de-',
-          'en': 'en-',
-          'fr': 'fr-',
-          'es': 'es-',
-          'it': 'it-'
-        };
-        translation = (prefixes[targetLanguage] || '') + sourceWord;
+        // For demo purposes, create a mock translation
+        // In a real app, the actual translation would come from the API
+        
+        // Simple mock algorithm to show that we're "translating"
+        if (sourceLanguage === 'de' && targetLanguage === 'en') {
+          // German to English mock translation
+          translation = sourceWord
+            .replace(/sch/g, 'sh')
+            .replace(/ei/g, 'i')
+            .replace(/eu/g, 'oi')
+            .replace(/ch/g, 'ch')
+            .replace(/ä/g, 'ae')
+            .replace(/ö/g, 'oe')
+            .replace(/ü/g, 'ue')
+            .replace(/ß/g, 'ss');
+            
+          // Add '-en' to the end of some words to make them feel "more English"
+          if (Math.random() > 0.7) {
+            translation += 'en';
+          }
+        } else if (sourceLanguage === 'en' && targetLanguage === 'de') {
+          // English to German mock translation
+          translation = sourceWord
+            .replace(/sh/g, 'sch')
+            .replace(/th/g, 't')
+            .replace(/w/g, 'v')
+            .replace(/i/g, 'ie')
+            .replace(/y$/, 'ie');
+            
+          // Occasionally add typical German word endings
+          if (Math.random() > 0.7) {
+            translation += 'en';
+          } else if (Math.random() > 0.5) {
+            translation += 'ung';
+          }
+        } else {
+          // Generic "translation" - just add a language-specific prefix
+          const prefixes: Record<string, string> = {
+            'de': 'de-',
+            'en': 'en-',
+            'fr': 'fr-',
+            'es': 'es-',
+            'it': 'it-'
+          };
+          translation = (prefixes[targetLanguage] || '') + sourceWord;
+        }
+      }
+      
+      // Capitalize the first letter of the translation
+      translation = capitalizeFirstLetter(translation);
+      
+      // Output the pair
+      if (sourceLanguage === 'de' && targetLanguage === 'en') {
+        translations.push({
+          german: sourceWord,
+          english: translation 
+        });
+      } else if (sourceLanguage === 'en' && targetLanguage === 'de') {
+        translations.push({
+          german: translation,
+          english: sourceWord
+        });
+      } else {
+        // For other language pairs, we still need to map to our data model
+        // This is a simplification; in a real app, you might want to store
+        // the actual source language and target language separately
+        translations.push({
+          german: sourceLanguage === 'de' ? sourceWord : translation,
+          english: targetLanguage === 'en' ? translation : sourceWord
+        });
       }
     }
-    
-    // Capitalize the first letter of the translation
-    translation = capitalizeFirstLetter(translation);
-    
-    // Output the pair
-    if (sourceLanguage === 'de' && targetLanguage === 'en') {
-      translations.push({
-        german: sourceWord,
-        english: translation 
-      });
-    } else if (sourceLanguage === 'en' && targetLanguage === 'de') {
-      translations.push({
-        german: translation,
-        english: sourceWord
-      });
-    } else {
-      // For other language pairs, we still need to map to our data model
-      translations.push({
-        german: sourceLanguage === 'de' ? sourceWord : translation,
-        english: targetLanguage === 'en' ? translation : sourceWord
-      });
-    }
+  } catch (error) {
+    console.error("Translation error:", error);
+    // In a real app, you might want to handle the error more gracefully
+    // For now, we'll just return what we have
   }
   
   return translations;

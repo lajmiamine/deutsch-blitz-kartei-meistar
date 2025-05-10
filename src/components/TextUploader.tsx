@@ -1,4 +1,4 @@
-import React, { useState, useCallback, ChangeEvent, useEffect } from 'react';
+import React, { useState, useCallback, ChangeEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
-import { XCircle, Upload, Info, Edit, Check, Trash2, Key, Eye, EyeOff } from "lucide-react";
+import { XCircle, Upload, Info, Edit, Check, Trash2 } from "lucide-react";
 import { extractVocabularyFromText } from "@/utils/textParser";
 import { 
   Select, 
@@ -18,7 +18,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { getExistingWordByGerman } from "@/utils/vocabularyService";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface TextUploaderProps {
   onFileImported?: () => void;
@@ -47,17 +46,6 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   const [selectedDifficulty, setSelectedDifficulty] = useState<number>(1);
   const [duplicateCount, setDuplicateCount] = useState<number>(0);
   const [selectedWordsCount, setSelectedWordsCount] = useState<number>(0);
-  const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState<boolean>(false);
-  const [apiKey, setApiKey] = useState<string>("");
-  const [showApiKey, setShowApiKey] = useState<boolean>(false);
-
-  // Load API key on component mount
-  useEffect(() => {
-    const savedApiKey = localStorage.getItem("openai-api-key");
-    if (savedApiKey) {
-      setApiKey(savedApiKey);
-    }
-  }, []);
   
   const extractVocabulary = useCallback(() => {
     if (!text.trim() && !file) {
@@ -167,23 +155,6 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     }
   }, [text, toast, onWordsExtracted, file, selectedDifficulty]);
   
-  const handleSaveApiKey = () => {
-    if (apiKey.trim()) {
-      localStorage.setItem("openai-api-key", apiKey.trim());
-      setApiKeyDialogOpen(false);
-      toast({
-        title: "API Key Saved",
-        description: "Your OpenAI API key has been saved for translation.",
-      });
-    } else {
-      toast({
-        title: "API Key Required",
-        description: "Please enter an API key or cancel.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleImport = async () => {
     const selectedWords = extractedWords.filter(word => word.isSelected);
     
@@ -444,65 +415,6 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
               <SelectItem value="3">Hard (3)</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Key className="w-4 h-4 mr-2 text-blue-500" />
-            <span className="text-sm">OpenAI API Key: </span>
-            <span className="text-sm ml-2">
-              {apiKey ? "●●●●●●●●●●●●●●●●" : "Not set"}
-            </span>
-          </div>
-          <Dialog open={apiKeyDialogOpen} onOpenChange={setApiKeyDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                {apiKey ? "Update API Key" : "Set API Key"}
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Set OpenAI API Key</DialogTitle>
-                <DialogDescription>
-                  Enter your OpenAI API key for translating vocabulary words.
-                  The key will be stored in your browser's local storage.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="apiKey" className="min-w-[100px]">
-                    API Key
-                  </Label>
-                  <div className="flex-1 flex items-center gap-2">
-                    <Input
-                      id="apiKey"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      type={showApiKey ? "text" : "password"}
-                      className="flex-1"
-                      placeholder="sk-..."
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setApiKeyDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveApiKey}>
-                  Save
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
         
         {extractedWords.length > 0 && (
