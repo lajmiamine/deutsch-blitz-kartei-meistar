@@ -56,7 +56,7 @@ const difficultyOptions = [
 ];
 
 // Define the import status type to ensure string literal types can be properly compared
-type ImportStatus = "idle" | "processing" | "extracted" | "imported";
+type ImportStatus = "extracted" | "imported" | "ready" | "none";
 
 const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const { toast } = useToast();
@@ -65,7 +65,7 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [extractedWords, setExtractedWords] = useState<ParsedWord[]>([]);
-  const [importStatus, setImportStatus] = useState<ImportStatus>("idle");
+  const [importStatus, setImportStatus] = useState<ImportStatus>("none");
   
   // File source tracking
   const [fileSource, setFileSource] = useState<string>("");
@@ -93,7 +93,7 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
         // Use the filename (without extension) as the source identifier
         setFileSource(selectedFile.name.replace(/\.[^/.]+$/, ""));
         setError(null);
-        setImportStatus("idle");
+        setImportStatus("none");
         setExtractedWords([]);
         setSelectedWords({});
       } else {
@@ -156,7 +156,7 @@ const TextUploader = ({ onWordsExtracted }: TextUploaderProps) => {
     } catch (err) {
       setError("Failed to extract vocabulary from the text file. Please check the file format.");
       console.error(err);
-      setImportStatus("idle");
+      setImportStatus("none");
       setShowLanguageSelector(false);
     } finally {
       clearInterval(progressInterval);
