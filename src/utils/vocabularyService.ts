@@ -77,8 +77,19 @@ export const getPaginatedVocabulary = (
   };
 };
 
+// Check if a German word already exists in the vocabulary
+export const germanWordExists = (germanWord: string): boolean => {
+  const vocabulary = getVocabulary();
+  return vocabulary.some(word => word.german.toLowerCase() === germanWord.toLowerCase());
+};
+
 // Add a new vocabulary word
-export const addVocabularyWord = (german: string, english: string, approved: boolean = false, source?: string, difficulty: number = 1): void => {
+export const addVocabularyWord = (german: string, english: string, approved: boolean = false, source?: string, difficulty: number = 1): boolean => {
+  // Check if the German word already exists
+  if (germanWordExists(german)) {
+    return false; // Word already exists, don't add it
+  }
+  
   const vocabulary = getVocabulary();
   const newWord: VocabularyWord = {
     id: Date.now().toString(),
@@ -92,6 +103,7 @@ export const addVocabularyWord = (german: string, english: string, approved: boo
   };
   vocabulary.push(newWord);
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(vocabulary));
+  return true; // Word was added successfully
 };
 
 // Update approval status of a word
@@ -119,15 +131,37 @@ export const updateWordDifficulty = (id: string, difficulty: number): void => {
 };
 
 // Update a vocabulary word
-export const updateVocabularyWord = (id: string, german: string, english: string): void => {
+export const updateVocabularyWord = (id: string, german: string, english: string): boolean => {
   const vocabulary = getVocabulary();
+  
+  // Find the word being edited
+  const editingWord = vocabulary.find(word => word.id === id);
+  if (!editingWord) return false;
+  
+  // If the German word hasn't changed, or if it has changed but doesn't conflict with another word
+  const germanChanged = editingWord.german.toLowerCase() !== german.toLowerCase();
+  
+  if (germanChanged) {
+    // Check if the new German word already exists in another entry
+    const germanExists = vocabulary.some(
+      word => word.id !== id && word.german.toLowerCase() === german.toLowerCase()
+    );
+    
+    if (germanExists) {
+      return false; // Duplicate German word, don't update
+    }
+  }
+  
+  // Update the word
   const updatedVocabulary = vocabulary.map(word => {
     if (word.id === id) {
       return { ...word, german, english };
     }
     return word;
   });
+  
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+  return true;
 };
 
 // Delete a vocabulary word
@@ -149,37 +183,52 @@ export const deleteWordsBySource = (source: string): number => {
 };
 
 // Add multiple vocabulary words (e.g., from text import)
-export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string; difficulty?: number }>, source?: string): void => {
+export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string; difficulty?: number }>, source?: string): { added: number, skipped: number } => {
   const vocabulary = getVocabulary();
+  let addedCount = 0;
+  let skippedCount = 0;
   
-  // Create a map of existing german-english pairs to prevent duplicates
-  const existingPairs = new Map<string, boolean>();
+  // Create a map of existing German words for faster lookups
+  const existingGermanWords = new Map<string, boolean>();
   vocabulary.forEach(word => {
-    const key = `${word.german.toLowerCase()}-${word.english.toLowerCase()}`;
-    existingPairs.set(key, true);
+    existingGermanWords.set(word.german.toLowerCase(), true);
   });
   
   // Filter out duplicates
-  const uniqueNewWords = words.filter(word => {
-    const key = `${word.german.toLowerCase()}-${word.english.toLowerCase()}`;
-    return !existingPairs.has(key);
+  const newWords: VocabularyWord[] = [];
+  
+  words.forEach(word => {
+    const germanLower = word.german.toLowerCase();
+    
+    // Skip if this German word already exists
+    if (existingGermanWords.has(germanLower)) {
+      skippedCount++;
+      return;
+    }
+    
+    // Add the word to our new words list
+    newWords.push({
+      id: Date.now() + Math.random().toString(36).substring(2, 8),
+      german: word.german,
+      english: word.english,
+      approved: true, // Automatically approve imported words
+      difficulty: word.difficulty || 1, // Use provided difficulty or default to 1 (Easy)
+      timesCorrect: 0,
+      timesIncorrect: 0,
+      source: source || undefined
+    });
+    
+    // Mark this German word as processed
+    existingGermanWords.set(germanLower, true);
+    addedCount++;
   });
   
-  const newWords = uniqueNewWords.map(word => ({
-    id: Date.now() + Math.random().toString(36).substring(2, 8),
-    german: word.german,
-    english: word.english,
-    approved: true, // Automatically approve imported words
-    difficulty: word.difficulty || 1, // Use provided difficulty or default to 1 (Easy)
-    timesCorrect: 0,
-    timesIncorrect: 0,
-    source: source || undefined
-  }));
+  if (newWords.length > 0) {
+    const updatedVocabulary = [...vocabulary, ...newWords];
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+  }
   
-  const updatedVocabulary = [...vocabulary, ...newWords];
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
-  
-  return;
+  return { added: addedCount, skipped: skippedCount };
 };
 
 // Update word statistics after a flashcard attempt
