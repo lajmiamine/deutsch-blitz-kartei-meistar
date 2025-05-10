@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
-import { XCircle, Upload, Info, Edit, Check, Trash2 } from "lucide-react";
+import { XCircle, Upload, Info, Edit, Check, Trash2, Key } from "lucide-react";
 import { extractVocabularyFromText } from "@/utils/textParser";
 import { 
   Select, 
@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { getExistingWordByGerman } from "@/utils/vocabularyService";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface TextUploaderProps {
   onFileImported?: () => void;
@@ -47,6 +48,18 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   const [duplicateCount, setDuplicateCount] = useState<number>(0);
   const [selectedWordsCount, setSelectedWordsCount] = useState<number>(0);
   
+  // New state for API key dialog
+  const [isApiKeyDialogOpen, setIsApiKeyDialogOpen] = useState(false);
+  const [apiKey, setApiKey] = useState<string>("");
+  
+  // Get the stored API key on component mount
+  React.useEffect(() => {
+    const storedApiKey = localStorage.getItem('deepl_api_key');
+    if (storedApiKey) {
+      setApiKey(storedApiKey);
+    }
+  }, []);
+  
   const extractVocabulary = useCallback(() => {
     if (!text.trim() && !file) {
       toast({
@@ -54,6 +67,14 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
         description: "Please paste text or upload a file containing vocabulary words.",
         variant: "destructive",
       });
+      return;
+    }
+    
+    // For text files, check if we have a DeepL API key when it's not an XML file
+    if (file && 
+        !file.name.toLowerCase().endsWith('.xml') && 
+        !localStorage.getItem('deepl_api_key')) {
+      setIsApiKeyDialogOpen(true);
       return;
     }
     
@@ -154,6 +175,28 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       }
     }
   }, [text, toast, onWordsExtracted, file, selectedDifficulty]);
+  
+  // Save API key and proceed with extraction
+  const saveApiKeyAndExtract = () => {
+    if (apiKey.trim()) {
+      localStorage.setItem('deepl_api_key', apiKey.trim());
+      setIsApiKeyDialogOpen(false);
+      
+      toast({
+        title: "API Key Saved",
+        description: "DeepL API key has been saved for translation.",
+      });
+      
+      // Now proceed with extraction
+      extractVocabulary();
+    } else {
+      toast({
+        title: "API Key Required",
+        description: "Please enter a valid DeepL API key to continue.",
+        variant: "destructive",
+      });
+    }
+  };
   
   const handleImport = async () => {
     const selectedWords = extractedWords.filter(word => word.isSelected);
@@ -340,6 +383,11 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setExtractedWords(updatedWords);
     setSelectedWordsCount(extractedWords.filter(word => !word.isDuplicate).length);
   };
+  
+  // Handle opening API key settings
+  const handleOpenApiKeyDialog = () => {
+    setIsApiKeyDialogOpen(true);
+  };
 
   return (
     <Card className="w-full">
@@ -380,8 +428,26 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
               {file.name.toLowerCase().endsWith('.xml') && (
                 <span className="ml-2 text-blue-500">(XML format)</span>
               )}
+              {!file.name.toLowerCase().endsWith('.xml') && (
+                <span className="ml-2 text-blue-500">
+                  (Will use DeepL API for translation)
+                </span>
+              )}
             </p>
           )}
+          
+          {/* API Key configuration button */}
+          <div className="flex justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleOpenApiKeyDialog}
+              className="flex items-center gap-1"
+            >
+              <Key className="h-4 w-4" />
+              Configure DeepL API Key
+            </Button>
+          </div>
         </div>
         
         {!file && (
@@ -571,6 +637,54 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
           </Button>
         )}
       </CardFooter>
+      
+      {/* API Key Dialog */}
+      <Dialog open={isApiKeyDialogOpen} onOpenChange={setIsApiKeyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>DeepL API Key</DialogTitle>
+            <DialogDescription>
+              Enter your DeepL API key to enable automatic translation of text files.
+              You can get a free API key from the DeepL website.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="api-key">API Key</Label>
+              <Input
+                id="api-key"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Enter your DeepL API key here"
+                className="w-full"
+                type="password"
+              />
+              <p className="text-xs text-muted-foreground">
+                The API key will be saved in your browser's local storage.
+              </p>
+            </div>
+            
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+              <p className="text-sm">
+                <strong>How to get a DeepL API key:</strong>
+              </p>
+              <ol className="text-xs text-muted-foreground mt-1 pl-4 list-decimal">
+                <li>Sign up for a DeepL account at <a href="https://www.deepl.com/pro-api" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">deepl.com/pro-api</a></li>
+                <li>Choose the free tier, which provides 500,000 characters per month</li>
+                <li>After registration, find your API key in the account settings</li>
+              </ol>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsApiKeyDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveApiKeyAndExtract}>
+              Save Key
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
