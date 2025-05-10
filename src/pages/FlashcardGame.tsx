@@ -366,6 +366,10 @@ const FlashcardGame = () => {
     // Make sure to reset all session mastery tracking
     setSessionMasteredWords([]);
     setSessionWordStats(new Map());
+    
+    // Force the WordProgressDialog to update with reset data
+    const resetWords = wordsWithSessionStatus;
+    setGameSessionWords([...resetWords]);
   };
   
   // Reset game progress completely for the session only

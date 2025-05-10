@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ interface WordProgressDialogProps {
 
 const WordProgressDialog = ({ words, gameSessionOnly = false }: WordProgressDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [cachedWords, setCachedWords] = useState<VocabularyWord[]>([]);
   
   // Get the most up-to-date word data directly from localStorage or from the current game session
   const getLatestWordData = () => {
@@ -37,11 +39,18 @@ const WordProgressDialog = ({ words, gameSessionOnly = false }: WordProgressDial
   // This function will be called whenever the dialog is opened
   const handleDialogChange = (open: boolean) => {
     setIsOpen(open);
+    
+    // When opening the dialog, update our cached words
+    if (open) {
+      setCachedWords(getLatestWordData());
+    }
   };
   
   // Prepare data only when the dialog is open to ensure we have the latest data
   const prepareDialogData = () => {
-    const latestWords = getLatestWordData();
+    // Use the cached words - this ensures we're displaying the words as they were
+    // when the dialog was opened, not any later updates
+    const latestWords = cachedWords.length > 0 ? cachedWords : getLatestWordData();
     
     // Calculate stats
     const totalWords = latestWords.length;
