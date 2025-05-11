@@ -6,10 +6,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Use process.env.REPO_NAME if available, otherwise use a placeholder
-  // You'll need to update this after renaming your repository
-  const repoName = process.env.REPO_NAME || 'your-new-repo-name';
-  const base = `/${repoName}/`;
+  // Use base path for GitHub Pages
+  const base = '/deutsch-blitz-kartei-meistar/';
   
   return {
     base,
