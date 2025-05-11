@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -191,7 +190,7 @@ const VocabularyList = ({
     onUpdateDifficulty(id, difficultyValue);
   };
 
-  // Modified handleSort function to prevent page reloads
+  // Modified handleSort function to reset to page 1
   const handleSort = (column: string) => {
     // Prevent default link behavior
     event?.preventDefault?.();
@@ -204,6 +203,9 @@ const VocabularyList = ({
       setSortBy(column);
       setSortDirection('asc');
     }
+    
+    // Reset to page 1 when changing sort
+    setPage(1);
   };
 
   // Handle word selection
