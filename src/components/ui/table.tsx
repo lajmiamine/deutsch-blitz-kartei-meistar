@@ -7,10 +7,11 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-  <div className="w-full overflow-auto">
+  <div className="overflow-auto" style={{ width: 'max-content', minWidth: '100%' }}>
     <table
       ref={ref}
-      className={cn("w-full caption-bottom text-sm", className)}
+      className={cn("caption-bottom text-sm", className)}
+      style={{ width: 'max-content' }}
       {...props}
     />
   </div>

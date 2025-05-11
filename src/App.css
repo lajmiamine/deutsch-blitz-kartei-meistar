@@ -41,37 +41,40 @@
   color: #888;
 }
 
-/* Reset table styling */
+/* Table styles to allow unrestricted width */
+.border.rounded-md.w-full.overflow-auto {
+  width: auto !important;
+  max-width: none !important;
+  overflow-x: auto !important;
+}
+
+/* Let tables be as wide as they need to be */
 table {
   width: auto !important;
   min-width: 100% !important;
+  table-layout: auto !important;
   border-collapse: separate !important;
   border-spacing: 0 !important;
-  table-layout: auto !important; /* Allow table to size based on content */
 }
 
-/* Make the table container scrollable but not constrained */
-.w-full.overflow-auto {
-  overflow-x: auto !important;
-  max-width: none !important;
-  width: 100% !important;
-}
-
-/* Ensure table cells have appropriate spacing */
+/* Ensure each cell has adequate space */
 th, td {
   padding: 0.75rem 1rem !important;
-  white-space: nowrap !important; /* Prevent text wrapping in cells */
+  white-space: nowrap !important;
+  min-width: fit-content !important;
 }
 
-/* Allow header text to wrap if needed */
-th {
-  white-space: normal !important;
-}
-
-/* Make sure the table header stays visible when scrolling */
+/* Make sure sticky header works correctly */
 thead {
   position: sticky !important;
   top: 0 !important;
   z-index: 10 !important;
   background-color: var(--background) !important;
+}
+
+/* Fix for VocabularyList component's table container */
+.VocabularyList .border.rounded-md.w-full.overflow-auto {
+  width: auto !important;
+  max-width: none !important;
+  overflow-x: auto !important;
 }

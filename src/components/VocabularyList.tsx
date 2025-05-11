@@ -344,7 +344,7 @@ const VocabularyList = ({
         </div>
       )}
 
-      <div className="border rounded-md w-full overflow-auto">
+      <div className="border rounded-md overflow-auto" style={{ width: 'auto', maxWidth: 'none' }}>
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
