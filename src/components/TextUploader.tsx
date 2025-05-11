@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
-import { XCircle, Upload, Info, Edit, Check, Trash2 } from "lucide-react";
+import { XCircle, Upload, Info, Edit, Check, Trash2, FileJson, FileXml } from "lucide-react";
 import { extractVocabularyFromText } from "@/utils/textParser";
 import { 
   Select, 
@@ -18,6 +18,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { getExistingWordByGerman } from "@/utils/vocabularyService";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 
 interface TextUploaderProps {
   onFileImported?: () => void;
@@ -341,6 +347,33 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
     setSelectedWordsCount(extractedWords.filter(word => !word.isDuplicate).length);
   };
 
+  // JSON example for tooltip
+  const jsonExample = `{
+  "words": [
+    {
+      "german": "Haus",
+      "english": "house"
+    },
+    {
+      "german": "Auto",
+      "english": "car"
+    }
+  ]
+}`;
+
+  // XML example for tooltip
+  const xmlExample = `<?xml version="1.0" encoding="UTF-8"?>
+<words>
+  <word>
+    <jp>Haus</jp>
+    <eng>house</eng>
+  </word>
+  <word>
+    <jp>Auto</jp>
+    <eng>car</eng>
+  </word>
+</words>`;
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -354,13 +387,50 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="fileUpload">Upload File</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="fileUpload">Upload File</Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-flex">
+                    <FileJson className="h-4 w-4 text-blue-500 mr-1 cursor-help" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="w-80 p-2">
+                  <div>
+                    <p className="font-semibold mb-1">JSON Format Example:</p>
+                    <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">
+                      {jsonExample}
+                    </pre>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-flex">
+                    <FileXml className="h-4 w-4 text-green-500 cursor-help" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="w-80 p-2">
+                  <div>
+                    <p className="font-semibold mb-1">XML Format Example:</p>
+                    <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">
+                      {xmlExample}
+                    </pre>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <div className="flex items-center gap-2">
             <Input
               id="fileUpload"
               type="file"
               onChange={handleFileChange}
-              accept=".txt,.doc,.docx,.pdf,.xml"
+              accept=".txt,.doc,.docx,.pdf,.xml,.json"
               className="dark:bg-gray-700 dark:text-white dark:border-gray-600"
             />
             <Button
@@ -379,6 +449,9 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
               File selected: {file.name}
               {file.name.toLowerCase().endsWith('.xml') && (
                 <span className="ml-2 text-blue-500">(XML format)</span>
+              )}
+              {file.name.toLowerCase().endsWith('.json') && (
+                <span className="ml-2 text-blue-500">(JSON format)</span>
               )}
             </p>
           )}
