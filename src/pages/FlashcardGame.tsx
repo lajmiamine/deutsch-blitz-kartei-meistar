@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import FlashcardComponent from "@/components/FlashcardComponent";
 import WordProgressDialog from "@/components/WordProgressDialog";
+import PreviousFlashcardDisplay from "@/components/PreviousFlashcardDisplay";
 import { 
   VocabularyWord, 
   getApprovedVocabulary, 
@@ -267,6 +268,16 @@ const FlashcardGame = () => {
   };
 
   const handleAnswerChecked = (cardId: string, wasCorrect: boolean) => {
+    // Save the current word as the previous word before moving on
+    const currentWord = unmasteredWords[currentWordIndex];
+    if (currentWord) {
+      setPreviousWord({...currentWord});
+      setPreviousWordCorrect(wasCorrect);
+      
+      // Try to get the user's answer from the FlashcardComponent
+      // This will be set by the FlashcardComponent itself
+    }
+    
     // Update session word statistics and get the updated word
     const updatedWord = updateSessionWordStatistics(cardId, wasCorrect);
     
@@ -386,6 +397,11 @@ const FlashcardGame = () => {
     setShowResults(false);
     setGameStartTime(null);
     setGameEndTime(null);
+    
+    // Reset previous word tracking
+    setPreviousWord(null);
+    setPreviousWordCorrect(null);
+    setPreviousUserAnswer("");
   };
   
   // Reset only the session progress, not the game state
@@ -395,6 +411,11 @@ const FlashcardGame = () => {
     setAnsweredCount(0);
     setSessionMasteredWords([]);
     setSessionWordStats(new Map());
+    
+    // Reset previous word tracking
+    setPreviousWord(null);
+    setPreviousWordCorrect(null);
+    setPreviousUserAnswer("");
   };
   
   // Apply session mastery status to the words list
@@ -520,6 +541,11 @@ const FlashcardGame = () => {
     
     return selectedSource || "All words";
   };
+
+  // New state for tracking the previous word
+  const [previousWord, setPreviousWord] = useState<VocabularyWord | null>(null);
+  const [previousWordCorrect, setPreviousWordCorrect] = useState<boolean | null>(null);
+  const [previousUserAnswer, setPreviousUserAnswer] = useState<string>("");
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -894,13 +920,31 @@ const FlashcardGame = () => {
               </div>
             </div>
 
+            {/* Show previous flashcard if available */}
+            <PreviousFlashcardDisplay 
+              word={previousWord}
+              wasCorrect={previousWordCorrect}
+              userAnswer={previousUserAnswer}
+              direction={direction}
+            />
+
             {/* Make sure currentWordIndex is valid before rendering FlashcardComponent */}
             {currentWordIndex >= 0 && unmasteredWords.length > 0 && currentWordIndex < unmasteredWords.length ? (
               <FlashcardComponent
                 word={unmasteredWords[currentWordIndex]}
                 direction={direction}
-                onCorrect={(wordId) => handleAnswerChecked(wordId, true)}
-                onIncorrect={(wordId) => handleAnswerChecked(wordId, false)}
+                onCorrect={(wordId) => {
+                  handleCaptureUserAnswer(""); // Correct answer means they typed the right thing
+                  handleAnswerChecked(wordId, true);
+                }}
+                onIncorrect={(wordId) => {
+                  // The user's answer is captured in the FlashcardComponent
+                  // We need to get it and pass it to our state
+                  const userAnswer = document.querySelector('input') ? 
+                    (document.querySelector('input') as HTMLInputElement).value : "";
+                  handleCaptureUserAnswer(userAnswer);
+                  handleAnswerChecked(wordId, false);
+                }}
                 onSkip={handleNextCard}
               />
             ) : (

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ const FlashcardComponent = ({
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
   const [hint, setHint] = useState("");
   const [showExplanation, setShowExplanation] = useState(false);
+  const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<number | null>(null);
   
   // Guard against undefined word object
   if (!word) {
@@ -53,7 +55,37 @@ const FlashcardComponent = ({
     setFeedback(null);
     setHint("");
     setShowExplanation(false);
+    
+    // Clear any existing auto-advance timer
+    if (autoAdvanceTimer) {
+      clearTimeout(autoAdvanceTimer);
+    }
   }, [word, direction]);
+
+  // Set up auto-advance when card is flipped
+  useEffect(() => {
+    if (isFlipped) {
+      // Clear any existing timer first
+      if (autoAdvanceTimer) {
+        clearTimeout(autoAdvanceTimer);
+      }
+      
+      // Set timer to auto-advance after delay
+      // Longer delay for incorrect answers to give time to read explanation
+      const delay = feedback === "correct" ? 2500 : 4000;
+      
+      const timerId = window.setTimeout(() => {
+        onSkip();
+      }, delay);
+      
+      setAutoAdvanceTimer(timerId);
+      
+      // Clean up timer when component unmounts or word changes
+      return () => {
+        clearTimeout(timerId);
+      };
+    }
+  }, [isFlipped, feedback]);
 
   // Calculate mastery requirement and progress
   const getMasteryRequirement = () => {
@@ -181,6 +213,18 @@ const FlashcardComponent = ({
       />
     </div>
   );
+
+  // Counter for the auto-advance timer
+  const autoAdvanceCountdown = () => {
+    if (!isFlipped) return null;
+    
+    const seconds = feedback === "correct" ? 2 : 4;
+    return (
+      <div className="mt-2 text-xs text-muted-foreground dark:text-gray-400">
+        Auto-advancing in {seconds} seconds...
+      </div>
+    );
+  };
 
   return (
     <div className={`flashcard w-full max-w-md mx-auto ${isFlipped ? "flipped" : ""}`}>
@@ -326,7 +370,10 @@ const FlashcardComponent = ({
               {wordProgressDisplay}
             </div>
             
-            {/* Change button text for incorrect answers, making it clear the user should acknowledge the correction */}
+            {/* Auto-advance countdown */}
+            {autoAdvanceCountdown()}
+            
+            {/* Manual continue button */}
             <Button 
               onClick={onSkip}
               className="dark:bg-primary dark:text-primary-foreground"
