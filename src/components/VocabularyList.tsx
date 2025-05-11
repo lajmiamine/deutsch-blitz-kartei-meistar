@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,10 @@ const VocabularyList = ({
             break;
           case 'difficulty':
             compareVal = (a.difficulty || 0) - (b.difficulty || 0);
+            break;
+          case 'approved':
+            // Sort by boolean values (true values first when ascending)
+            compareVal = a.approved === b.approved ? 0 : a.approved ? -1 : 1;
             break;
           case 'source':
             // Handle undefined sources properly for sorting
@@ -350,7 +355,11 @@ const VocabularyList = ({
                       aria-label="Select all words" 
                     />
                   </TableHead>
-                  <TableHead className="w-[60px]">Approved</TableHead>
+                  <TableHead className="w-[60px] cursor-pointer" onClick={(e) => { e.preventDefault(); handleSort("approved"); }}>
+                    <div className="flex items-center gap-1">
+                      Approved {getSortIcon("approved")}
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
                   <TableHead 
                     className="cursor-pointer" 

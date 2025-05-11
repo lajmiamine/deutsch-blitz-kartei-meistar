@@ -88,6 +88,10 @@ export const getPaginatedVocabulary = (
       case 'difficulty':
         compareVal = (a.difficulty || 0) - (b.difficulty || 0);
         break;
+      case 'approved':
+        // Sort by boolean values (true values first when ascending)
+        compareVal = a.approved === b.approved ? 0 : a.approved ? -1 : 1;
+        break;
       case 'source':
         // Handle undefined sources properly for sorting
         const sourceA = a.source || '';
