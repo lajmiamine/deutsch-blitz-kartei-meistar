@@ -31,9 +31,17 @@ jobs:
       - name: Build
         run: npm run build
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v1.0.9
         with:
           path: ./dist
+      # Explicitly include the dependency that's causing issues
+      - name: Cache upload-artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: dummy-artifact
+          path: README.md
+          retention-days: 1
+        if: false  # This is a dummy step that won't actually run
 
   deploy:
     environment:
@@ -44,4 +52,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v1.2.5
