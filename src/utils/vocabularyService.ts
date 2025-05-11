@@ -1,4 +1,3 @@
-
 export interface VocabularyWord {
   id: string;
   german: string;
@@ -10,7 +9,6 @@ export interface VocabularyWord {
   source?: string;  // Optional field to track which file the word came from
   correctStreak?: number; // Track consecutive correct answers for mastery
   mastered?: boolean; // Whether the word is considered mastered
-  updatedAt?: string; // Track when the word was last updated
 }
 
 const LOCAL_STORAGE_KEY = 'german_vocabulary';
@@ -55,9 +53,7 @@ export const getPaginatedVocabulary = (
   page: number = 1, 
   pageSize: number = 20, 
   searchTerm: string = '',
-  source?: string,
-  sortField: string = 'german',
-  sortDirection: 'asc' | 'desc' = 'asc'
+  source?: string
 ): { words: VocabularyWord[], totalCount: number } => {
   const vocabulary = getVocabulary();
   
@@ -73,29 +69,10 @@ export const getPaginatedVocabulary = (
     
     return matchesSearch && matchesSource;
   });
-
-  // Sort the filtered results
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortField === 'german') {
-      return sortDirection === 'asc' 
-        ? a.german.localeCompare(b.german) 
-        : b.german.localeCompare(a.german);
-    } else if (sortField === 'english') {
-      return sortDirection === 'asc' 
-        ? a.english.localeCompare(b.english) 
-        : b.english.localeCompare(a.english);
-    } else if (sortField === 'updated') {
-      // Sort by updatedAt timestamp (or ID as fallback for older entries)
-      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : parseInt(a.id);
-      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : parseInt(b.id);
-      return sortDirection === 'asc' ? aTime - bTime : bTime - aTime;
-    }
-    return 0;
-  });
   
-  const totalCount = sorted.length;
+  const totalCount = filtered.length;
   const startIndex = (page - 1) * pageSize;
-  const paginatedWords = sorted.slice(startIndex, startIndex + pageSize);
+  const paginatedWords = filtered.slice(startIndex, startIndex + pageSize);
   
   return {
     words: paginatedWords,
@@ -126,7 +103,6 @@ export const addVocabularyWord = (german: string, english: string, approved: boo
   }
   
   const vocabulary = getVocabulary();
-  const now = new Date().toISOString();
   const newWord: VocabularyWord = {
     id: Date.now().toString(),
     german,
@@ -135,8 +111,7 @@ export const addVocabularyWord = (german: string, english: string, approved: boo
     difficulty,
     timesCorrect: 0,
     timesIncorrect: 0,
-    source,
-    updatedAt: now
+    source
   };
   vocabulary.push(newWord);
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(vocabulary));
@@ -146,10 +121,9 @@ export const addVocabularyWord = (german: string, english: string, approved: boo
 // Update approval status of a word
 export const updateWordApproval = (id: string, approved: boolean): void => {
   const vocabulary = getVocabulary();
-  const now = new Date().toISOString();
   const updatedVocabulary = vocabulary.map(word => {
     if (word.id === id) {
-      return { ...word, approved, updatedAt: now };
+      return { ...word, approved };
     }
     return word;
   });
@@ -160,12 +134,11 @@ export const updateWordApproval = (id: string, approved: boolean): void => {
 export const updateDifficultyBySource = (source: string, newDifficulty: number): number => {
   const vocabulary = getVocabulary();
   let updatedCount = 0;
-  const now = new Date().toISOString();
   
   const updatedVocabulary = vocabulary.map(word => {
     if (word.source === source) {
       updatedCount++;
-      return { ...word, difficulty: newDifficulty, updatedAt: now };
+      return { ...word, difficulty: newDifficulty };
     }
     return word;
   });
@@ -177,10 +150,9 @@ export const updateDifficultyBySource = (source: string, newDifficulty: number):
 // Update a vocabulary word's difficulty
 export const updateWordDifficulty = (id: string, difficulty: number): void => {
   const vocabulary = getVocabulary();
-  const now = new Date().toISOString();
   const updatedVocabulary = vocabulary.map(word => {
     if (word.id === id) {
-      return { ...word, difficulty, updatedAt: now };
+      return { ...word, difficulty };
     }
     return word;
   });
@@ -210,10 +182,9 @@ export const updateVocabularyWord = (id: string, german: string, english: string
   }
   
   // Update the word
-  const now = new Date().toISOString();
   const updatedVocabulary = vocabulary.map(word => {
     if (word.id === id) {
-      return { ...word, german, english, updatedAt: now };
+      return { ...word, german, english };
     }
     return word;
   });
@@ -240,30 +211,11 @@ export const deleteWordsBySource = (source: string): number => {
   return wordsBeforeDelete - updatedVocabulary.length;
 };
 
-// Update source for multiple words at once
-export const updateSourceForWords = (ids: string[], newSource: string): number => {
-  const vocabulary = getVocabulary();
-  let updatedCount = 0;
-  const now = new Date().toISOString();
-  
-  const updatedVocabulary = vocabulary.map(word => {
-    if (ids.includes(word.id)) {
-      updatedCount++;
-      return { ...word, source: newSource, updatedAt: now };
-    }
-    return word;
-  });
-  
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
-  return updatedCount;
-};
-
 // Add multiple vocabulary words (e.g., from text import)
 export const addMultipleVocabularyWords = (words: Array<{ german: string; english: string; difficulty?: number }>, source?: string): { added: number, skipped: number } => {
   const vocabulary = getVocabulary();
   let addedCount = 0;
   let skippedCount = 0;
-  const now = new Date().toISOString();
   
   // Create a map of existing German words for faster lookups
   const existingGermanWords = new Map<string, boolean>();
@@ -292,8 +244,7 @@ export const addMultipleVocabularyWords = (words: Array<{ german: string; englis
       difficulty: word.difficulty || 1, // Use provided difficulty or default to 1 (Easy)
       timesCorrect: 0,
       timesIncorrect: 0,
-      source: source || undefined,
-      updatedAt: now
+      source: source || undefined
     });
     
     // Mark this German word as processed
@@ -313,7 +264,6 @@ export const addMultipleVocabularyWords = (words: Array<{ german: string; englis
 export const updateWordStatistics = (id: string, wasCorrect: boolean): VocabularyWord | null => {
   const vocabulary = getVocabulary();
   let updatedWord: VocabularyWord | null = null;
-  const now = new Date().toISOString();
   
   const updatedVocabulary = vocabulary.map(word => {
     if (word.id === id) {
@@ -343,8 +293,7 @@ export const updateWordStatistics = (id: string, wasCorrect: boolean): Vocabular
         timesCorrect, 
         timesIncorrect,
         correctStreak,
-        mastered,
-        updatedAt: now
+        mastered
       };
       
       return updatedWord;
@@ -359,7 +308,6 @@ export const updateWordStatistics = (id: string, wasCorrect: boolean): Vocabular
 // Reset mastery for all words
 export const resetWordMasteryProgress = (): void => {
   const vocabulary = getVocabulary();
-  const now = new Date().toISOString();
   const updatedVocabulary = vocabulary.map(word => {
     return { 
       ...word, 
@@ -367,8 +315,7 @@ export const resetWordMasteryProgress = (): void => {
       mastered: false,
       // Reset the statistics as well
       timesCorrect: 0,
-      timesIncorrect: 0,
-      updatedAt: now
+      timesIncorrect: 0
     };
   });
   
@@ -474,7 +421,6 @@ export const getNonMasteredVocabularyByDifficulty = (difficulty: number): Vocabu
 export const updateSourceName = (oldSource: string, newSource: string): number => {
   const vocabulary = getVocabulary();
   let updatedCount = 0;
-  const now = new Date().toISOString();
   
   // Check if the new source name already exists
   const existingSources = getAllSources();
@@ -485,7 +431,7 @@ export const updateSourceName = (oldSource: string, newSource: string): number =
   const updatedVocabulary = vocabulary.map(word => {
     if (word.source === oldSource) {
       updatedCount++;
-      return { ...word, source: newSource, updatedAt: now };
+      return { ...word, source: newSource };
     }
     return word;
   });
@@ -522,17 +468,8 @@ export const importVocabulary = (jsonData: string): { success: boolean; wordCoun
       return { success: false, wordCount: 0 };
     }
     
-    // Add updatedAt field if missing
-    const now = new Date().toISOString();
-    const vocabularyWithUpdatedAt = vocabulary.map(word => {
-      if (!word.updatedAt) {
-        return { ...word, updatedAt: now };
-      }
-      return word;
-    });
-    
     // Save the imported vocabulary to localStorage
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(vocabularyWithUpdatedAt));
+    localStorage.setItem(LOCAL_STORAGE_KEY, jsonData);
     
     return { success: true, wordCount: vocabulary.length };
   } catch (error) {

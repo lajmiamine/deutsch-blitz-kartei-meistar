@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,6 @@ import {
   deleteWordsBySource,
   updateDifficultyBySource,
   updateSourceName,
-  updateSourceForWords,
   exportVocabulary,
   importVocabulary
 } from "@/utils/vocabularyService";
@@ -235,25 +233,6 @@ const AdminPanel = () => {
     toast({
       title: "Difficulty Updated",
       description: `Updated ${updatedCount} words from "${source}" to "${difficultyLabels[difficulty] || 'Unknown'}" difficulty.`,
-      duration: 3000,
-    });
-  };
-
-  const handleUpdateSource = (ids: string[], newSource: string) => {
-    const updatedCount = updateSourceForWords(ids, newSource);
-    
-    // Refresh vocabulary
-    setVocabulary(getVocabulary());
-    
-    // Update the sources list if we added a new source
-    const currentSources = getAllSources();
-    if (!fileSources.includes(newSource) && currentSources.includes(newSource)) {
-      setFileSources(currentSources);
-    }
-    
-    toast({
-      title: "Source Updated",
-      description: `Updated ${updatedCount} words to source "${newSource}".`,
       duration: 3000,
     });
   };
@@ -531,7 +510,6 @@ const AdminPanel = () => {
                 onDeleteWord={handleDeleteWord}
                 onEditWord={handleEditWord}
                 onUpdateDifficulty={handleUpdateDifficulty}
-                onUpdateSource={handleUpdateSource}
                 selectedSource={selectedSource}
                 sources={fileSources}
                 onSourceChange={handleSourceChange}
