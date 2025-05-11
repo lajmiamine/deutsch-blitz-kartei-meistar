@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { VocabularyWord, getPaginatedVocabulary } from "@/utils/vocabularyService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Search, ChevronLeft, ChevronRight, SortAsc, SortDesc, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { toast } from "@/hooks/use-toast";
 
 interface VocabularyListProps {
   words?: VocabularyWord[];
@@ -13,6 +17,7 @@ interface VocabularyListProps {
   onDeleteWord: (id: string) => void;
   onEditWord: (id: string, german: string, english: string) => void;
   onUpdateDifficulty?: (id: string, difficulty: number) => void;
+  onUpdateSource?: (ids: string[], newSource: string) => void;
   selectedSource?: string;
   sources?: string[];
   onSourceChange?: (source: string | undefined) => void;
@@ -24,6 +29,7 @@ const VocabularyList = ({
   onDeleteWord, 
   onEditWord,
   onUpdateDifficulty,
+  onUpdateSource,
   selectedSource,
   sources = [],
   onSourceChange
@@ -37,12 +43,36 @@ const VocabularyList = ({
   const [totalWords, setTotalWords] = useState(0);
   const [words, setWords] = useState<VocabularyWord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sortField, setSortField] = useState<"german" | "english" | "updated">("german");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
+  const [isSourceDialogOpen, setIsSourceDialogOpen] = useState(false);
+  const [newSource, setNewSource] = useState("");
 
   // Load words with pagination if propWords is not provided
   useEffect(() => {
     if (propWords) {
-      setWords(propWords);
-      setTotalWords(propWords.length);
+      // Apply sorting to the provided words
+      const sortedWords = [...propWords].sort((a, b) => {
+        if (sortField === "german") {
+          return sortDirection === "asc" 
+            ? a.german.localeCompare(b.german)
+            : b.german.localeCompare(a.german);
+        } else if (sortField === "english") {
+          return sortDirection === "asc"
+            ? a.english.localeCompare(b.english)
+            : b.english.localeCompare(a.english);
+        } else if (sortField === "updated") {
+          // Compare by the updatedAt timestamp if it exists, otherwise use id (as a proxy for creation date)
+          const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : parseInt(a.id);
+          const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : parseInt(b.id);
+          return sortDirection === "asc" ? aTime - bTime : bTime - aTime;
+        }
+        return 0;
+      });
+      
+      setWords(sortedWords);
+      setTotalWords(sortedWords.length);
       return;
     }
 
@@ -54,7 +84,9 @@ const VocabularyList = ({
         page,
         pageSize,
         searchTerm,
-        selectedSource
+        selectedSource,
+        sortField,
+        sortDirection
       );
       setWords(paginatedWords);
       setTotalWords(totalCount);
@@ -62,7 +94,7 @@ const VocabularyList = ({
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [page, pageSize, searchTerm, selectedSource, propWords]);
+  }, [page, pageSize, searchTerm, selectedSource, propWords, sortField, sortDirection]);
 
   const startEditing = (word: VocabularyWord) => {
     setEditingId(word.id);
@@ -127,6 +159,65 @@ const VocabularyList = ({
     onUpdateDifficulty(id, difficultyValue);
   };
 
+  // Toggle sort direction or change sort field
+  const handleSort = (field: "german" | "english" | "updated") => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+    setPage(1); // Reset to first page when changing sort
+  };
+
+  // Handle individual word selection
+  const handleSelectWord = (id: string, selected: boolean) => {
+    setSelectedWordIds(prevSelected => {
+      if (selected) {
+        return [...prevSelected, id];
+      } else {
+        return prevSelected.filter(wordId => wordId !== id);
+      }
+    });
+  };
+
+  // Handle select all words on current page
+  const handleSelectAllOnPage = (selected: boolean) => {
+    if (selected) {
+      const currentPageIds = words.map(word => word.id);
+      setSelectedWordIds(prev => {
+        const uniqueIds = new Set([...prev, ...currentPageIds]);
+        return Array.from(uniqueIds);
+      });
+    } else {
+      const currentPageIds = new Set(words.map(word => word.id));
+      setSelectedWordIds(prev => prev.filter(id => !currentPageIds.has(id)));
+    }
+  };
+
+  // Check if all words on current page are selected
+  const areAllWordsOnPageSelected = words.length > 0 && 
+    words.every(word => selectedWordIds.includes(word.id));
+
+  // Update source for selected words
+  const handleUpdateSource = () => {
+    if (selectedWordIds.length === 0 || !newSource.trim() || !onUpdateSource) return;
+    
+    onUpdateSource(selectedWordIds, newSource.trim());
+    setIsSourceDialogOpen(false);
+    setNewSource("");
+    
+    toast({
+      title: "Source Updated",
+      description: `Updated source for ${selectedWordIds.length} word(s) to "${newSource.trim()}"`,
+    });
+  };
+
+  // Clear all selections
+  const clearSelections = () => {
+    setSelectedWordIds([]);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
@@ -162,22 +253,76 @@ const VocabularyList = ({
         )}
       </div>
 
+      {/* Batch actions toolbar */}
+      {selectedWordIds.length > 0 && (
+        <div className="flex items-center justify-between bg-muted p-2 rounded-md">
+          <div className="text-sm font-medium">
+            {selectedWordIds.length} word{selectedWordIds.length === 1 ? '' : 's'} selected
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => setIsSourceDialogOpen(true)}
+            >
+              Update Source
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={clearSelections}
+            >
+              Clear Selection
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="border rounded-md">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[50px]">
+                <Checkbox 
+                  checked={areAllWordsOnPageSelected}
+                  onCheckedChange={handleSelectAllOnPage}
+                  aria-label="Select all words on page"
+                />
+              </TableHead>
               <TableHead className="w-[100px]">Approved</TableHead>
-              <TableHead>German</TableHead>
-              <TableHead>English</TableHead>
+              <TableHead>
+                <div className="flex items-center gap-1 cursor-pointer" onClick={() => handleSort("german")}>
+                  German
+                  {sortField === "german" && (
+                    sortDirection === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+                  )}
+                </div>
+              </TableHead>
+              <TableHead>
+                <div className="flex items-center gap-1 cursor-pointer" onClick={() => handleSort("english")}>
+                  English
+                  {sortField === "english" && (
+                    sortDirection === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+                  )}
+                </div>
+              </TableHead>
               <TableHead>Difficulty</TableHead>
               <TableHead>Source</TableHead>
+              <TableHead>
+                <div className="flex items-center gap-1 cursor-pointer" onClick={() => handleSort("updated")}>
+                  Updated
+                  {sortField === "updated" && (
+                    sortDirection === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+                  )}
+                </div>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
                     <p>Loading vocabulary...</p>
@@ -187,6 +332,13 @@ const VocabularyList = ({
             ) : words.length > 0 ? (
               words.map((word) => (
                 <TableRow key={word.id}>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedWordIds.includes(word.id)}
+                      onCheckedChange={(checked) => handleSelectWord(word.id, checked === true)}
+                      aria-label={`Select ${word.german}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Checkbox
                       checked={word.approved}
@@ -235,12 +387,21 @@ const VocabularyList = ({
                     )}
                   </TableCell>
                   <TableCell>
-                    {word.source && (
+                    {word.source ? (
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3 text-muted-foreground" />
                         <span className="text-sm">{word.source}</span>
                       </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No source</span>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">
+                      {word.updatedAt 
+                        ? new Date(word.updatedAt).toLocaleDateString() 
+                        : 'Not updated'}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right">
                     {editingId === word.id ? (
@@ -265,7 +426,7 @@ const VocabularyList = ({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
                   No vocabulary words found
                 </TableCell>
               </TableRow>
@@ -302,6 +463,41 @@ const VocabularyList = ({
           </div>
         </div>
       )}
+
+      {/* Dialog for updating source */}
+      <Dialog open={isSourceDialogOpen} onOpenChange={setIsSourceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Source</DialogTitle>
+            <DialogDescription>
+              Change the source for {selectedWordIds.length} selected word{selectedWordIds.length === 1 ? '' : 's'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="newSource" className="text-sm font-medium">
+                  New Source
+                </label>
+                <Input
+                  id="newSource"
+                  value={newSource}
+                  onChange={(e) => setNewSource(e.target.value)}
+                  placeholder="Enter new source name"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSourceDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateSource} disabled={!newSource.trim()}>
+              Update Source
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
