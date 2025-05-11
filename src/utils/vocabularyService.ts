@@ -9,22 +9,24 @@ export interface VocabularyWord {
   source?: string;  // Optional field to track which file the word came from
   correctStreak?: number; // Track consecutive correct answers for mastery
   mastered?: boolean; // Whether the word is considered mastered
+  createdAt: number; // Timestamp when word was created
+  updatedAt: number; // Timestamp when word was last updated
 }
 
 const LOCAL_STORAGE_KEY = 'german_vocabulary';
 
 // Sample vocabulary to start with
 const sampleVocabulary: VocabularyWord[] = [
-  { id: '1', german: 'Haus', english: 'house', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
-  { id: '2', german: 'Katze', english: 'cat', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
-  { id: '3', german: 'Hund', english: 'dog', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
-  { id: '4', german: 'Buch', english: 'book', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
-  { id: '5', german: 'Apfel', english: 'apple', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
-  { id: '6', german: 'Fenster', english: 'window', approved: true, difficulty: 2, timesCorrect: 0, timesIncorrect: 0 },
-  { id: '7', german: 'Straße', english: 'street', approved: true, difficulty: 2, timesCorrect: 0, timesIncorrect: 0 },
-  { id: '8', german: 'Blume', english: 'flower', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
-  { id: '9', german: 'Wasser', english: 'water', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
-  { id: '10', german: 'Tisch', english: 'table', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0 },
+  { id: '1', german: 'Haus', english: 'house', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
+  { id: '2', german: 'Katze', english: 'cat', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
+  { id: '3', german: 'Hund', english: 'dog', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
+  { id: '4', german: 'Buch', english: 'book', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
+  { id: '5', german: 'Apfel', english: 'apple', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
+  { id: '6', german: 'Fenster', english: 'window', approved: true, difficulty: 2, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
+  { id: '7', german: 'Straße', english: 'street', approved: true, difficulty: 2, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
+  { id: '8', german: 'Blume', english: 'flower', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
+  { id: '9', german: 'Wasser', english: 'water', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
+  { id: '10', german: 'Tisch', english: 'table', approved: true, difficulty: 1, timesCorrect: 0, timesIncorrect: 0, createdAt: Date.now(), updatedAt: Date.now() },
 ];
 
 // Initialize localStorage with sample vocabulary if empty
@@ -53,7 +55,9 @@ export const getPaginatedVocabulary = (
   page: number = 1, 
   pageSize: number = 20, 
   searchTerm: string = '',
-  source?: string
+  source?: string,
+  sortBy: string = 'german',
+  sortDirection: 'asc' | 'desc' = 'asc'
 ): { words: VocabularyWord[], totalCount: number } => {
   const vocabulary = getVocabulary();
   
@@ -70,9 +74,33 @@ export const getPaginatedVocabulary = (
     return matchesSearch && matchesSource;
   });
   
-  const totalCount = filtered.length;
+  // Sort the filtered words
+  const sorted = [...filtered].sort((a, b) => {
+    let compareVal = 0;
+    
+    switch (sortBy) {
+      case 'german':
+        compareVal = a.german.localeCompare(b.german);
+        break;
+      case 'english':
+        compareVal = a.english.localeCompare(b.english);
+        break;
+      case 'createdAt':
+        compareVal = (a.createdAt || 0) - (b.createdAt || 0);
+        break;
+      case 'updatedAt':
+        compareVal = (a.updatedAt || 0) - (b.updatedAt || 0);
+        break;
+      default:
+        compareVal = a.german.localeCompare(b.german);
+    }
+    
+    return sortDirection === 'asc' ? compareVal : -compareVal;
+  });
+  
+  const totalCount = sorted.length;
   const startIndex = (page - 1) * pageSize;
-  const paginatedWords = filtered.slice(startIndex, startIndex + pageSize);
+  const paginatedWords = sorted.slice(startIndex, startIndex + pageSize);
   
   return {
     words: paginatedWords,
@@ -102,6 +130,7 @@ export const addVocabularyWord = (german: string, english: string, approved: boo
     return false; // Word already exists, don't add it
   }
   
+  const now = Date.now();
   const vocabulary = getVocabulary();
   const newWord: VocabularyWord = {
     id: Date.now().toString(),
@@ -111,7 +140,9 @@ export const addVocabularyWord = (german: string, english: string, approved: boo
     difficulty,
     timesCorrect: 0,
     timesIncorrect: 0,
-    source
+    source,
+    createdAt: now,
+    updatedAt: now
   };
   vocabulary.push(newWord);
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(vocabulary));
@@ -123,22 +154,40 @@ export const updateWordApproval = (id: string, approved: boolean): void => {
   const vocabulary = getVocabulary();
   const updatedVocabulary = vocabulary.map(word => {
     if (word.id === id) {
-      return { ...word, approved };
+      return { ...word, approved, updatedAt: Date.now() };
     }
     return word;
   });
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
 };
 
-// Update difficulty for all words from a specific source
-export const updateDifficultyBySource = (source: string, newDifficulty: number): number => {
+// Update source for multiple words
+export const updateWordsSource = (ids: string[], source: string): number => {
   const vocabulary = getVocabulary();
   let updatedCount = 0;
   
   const updatedVocabulary = vocabulary.map(word => {
+    if (ids.includes(word.id)) {
+      updatedCount++;
+      return { ...word, source, updatedAt: Date.now() };
+    }
+    return word;
+  });
+  
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedVocabulary));
+  return updatedCount;
+};
+
+// Update difficulty for all words from a specific source
+export const updateDifficultyBySource = (source: string, newDifficulty: number): number => {
+  const vocabulary = getVocabulary();
+  let updatedCount = 0;
+  const now = Date.now();
+  
+  const updatedVocabulary = vocabulary.map(word => {
     if (word.source === source) {
       updatedCount++;
-      return { ...word, difficulty: newDifficulty };
+      return { ...word, difficulty: newDifficulty, updatedAt: now };
     }
     return word;
   });
@@ -152,7 +201,7 @@ export const updateWordDifficulty = (id: string, difficulty: number): void => {
   const vocabulary = getVocabulary();
   const updatedVocabulary = vocabulary.map(word => {
     if (word.id === id) {
-      return { ...word, difficulty };
+      return { ...word, difficulty, updatedAt: Date.now() };
     }
     return word;
   });
@@ -184,7 +233,7 @@ export const updateVocabularyWord = (id: string, german: string, english: string
   // Update the word
   const updatedVocabulary = vocabulary.map(word => {
     if (word.id === id) {
-      return { ...word, german, english };
+      return { ...word, german, english, updatedAt: Date.now() };
     }
     return word;
   });
@@ -225,6 +274,7 @@ export const addMultipleVocabularyWords = (words: Array<{ german: string; englis
   
   // Filter out duplicates
   const newWords: VocabularyWord[] = [];
+  const now = Date.now();
   
   words.forEach(word => {
     const germanLower = word.german.toLowerCase();
@@ -244,7 +294,9 @@ export const addMultipleVocabularyWords = (words: Array<{ german: string; englis
       difficulty: word.difficulty || 1, // Use provided difficulty or default to 1 (Easy)
       timesCorrect: 0,
       timesIncorrect: 0,
-      source: source || undefined
+      source: source || undefined,
+      createdAt: now,
+      updatedAt: now
     });
     
     // Mark this German word as processed
@@ -461,7 +513,9 @@ export const importVocabulary = (jsonData: string): { success: boolean; wordCoun
         typeof word.approved === 'boolean' &&
         typeof word.difficulty === 'number' &&
         typeof word.timesCorrect === 'number' &&
-        typeof word.timesIncorrect === 'number'
+        typeof word.timesIncorrect === 'number' &&
+        typeof word.createdAt === 'number' &&
+        typeof word.updatedAt === 'number'
       );
     
     if (!isValid) {

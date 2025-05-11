@@ -1,11 +1,14 @@
+
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { VocabularyWord, getPaginatedVocabulary } from "@/utils/vocabularyService";
+import { VocabularyWord, getPaginatedVocabulary, updateWordsSource } from "@/utils/vocabularyService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Search, ChevronLeft, ChevronRight, ArrowUpDown, Check, SortAsc, SortDesc } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface VocabularyListProps {
   words?: VocabularyWord[];
@@ -28,6 +31,7 @@ const VocabularyList = ({
   sources = [],
   onSourceChange
 }: VocabularyListProps) => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editGerman, setEditGerman] = useState("");
@@ -37,6 +41,12 @@ const VocabularyList = ({
   const [totalWords, setTotalWords] = useState(0);
   const [words, setWords] = useState<VocabularyWord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedWords, setSelectedWords] = useState<string[]>([]);
+  const [isAllSelected, setIsAllSelected] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("german");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [isSourceDialogOpen, setIsSourceDialogOpen] = useState(false);
+  const [newSource, setNewSource] = useState<string>("");
 
   // Load words with pagination if propWords is not provided
   useEffect(() => {
@@ -54,15 +64,26 @@ const VocabularyList = ({
         page,
         pageSize,
         searchTerm,
-        selectedSource
+        selectedSource,
+        sortBy,
+        sortDirection
       );
       setWords(paginatedWords);
       setTotalWords(totalCount);
       setLoading(false);
+      
+      // Reset selection when data changes
+      setSelectedWords([]);
+      setIsAllSelected(false);
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [page, pageSize, searchTerm, selectedSource, propWords]);
+  }, [page, pageSize, searchTerm, selectedSource, propWords, sortBy, sortDirection]);
+
+  // Handle all selection checkbox
+  useEffect(() => {
+    setIsAllSelected(words.length > 0 && selectedWords.length === words.length);
+  }, [selectedWords, words]);
 
   const startEditing = (word: VocabularyWord) => {
     setEditingId(word.id);
@@ -127,6 +148,96 @@ const VocabularyList = ({
     onUpdateDifficulty(id, difficultyValue);
   };
 
+  // Handle sort toggle
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortBy(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Handle word selection
+  const toggleWordSelection = (id: string) => {
+    setSelectedWords(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(wordId => wordId !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  // Handle select all words
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedWords([]);
+    } else {
+      setSelectedWords(words.map(word => word.id));
+    }
+    setIsAllSelected(!isAllSelected);
+  };
+
+  // Open source update dialog
+  const openSourceUpdateDialog = () => {
+    if (selectedWords.length === 0) {
+      toast({
+        title: "No words selected",
+        description: "Please select at least one word to update",
+        variant: "destructive",
+      });
+      return;
+    }
+    setNewSource("");
+    setIsSourceDialogOpen(true);
+  };
+
+  // Update source for selected words
+  const handleUpdateSource = () => {
+    if (newSource.trim() === "") {
+      toast({
+        title: "Error",
+        description: "Source name cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const updatedCount = updateWordsSource(selectedWords, newSource.trim());
+    
+    // Update the local words state immediately
+    setWords(currentWords => 
+      currentWords.map(word => 
+        selectedWords.includes(word.id) ? { ...word, source: newSource.trim() } : word
+      )
+    );
+    
+    setIsSourceDialogOpen(false);
+    setSelectedWords([]);
+    
+    toast({
+      title: "Source Updated",
+      description: `Updated source for ${updatedCount} words`,
+    });
+  };
+
+  // Get sort icon for column
+  const getSortIcon = (column: string) => {
+    if (sortBy === column) {
+      return sortDirection === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />;
+    }
+    return <ArrowUpDown className="h-4 w-4" />;
+  };
+
+  // Format timestamp to readable date
+  const formatDate = (timestamp?: number) => {
+    if (!timestamp) return "—";
+    return new Date(timestamp).toLocaleDateString();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
@@ -162,22 +273,64 @@ const VocabularyList = ({
         )}
       </div>
 
+      {selectedWords.length > 0 && (
+        <div className="flex items-center justify-between bg-muted p-2 rounded-md">
+          <div className="text-sm font-medium">
+            {selectedWords.length} {selectedWords.length === 1 ? 'word' : 'words'} selected
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={openSourceUpdateDialog}
+            >
+              Update Source
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="border rounded-md">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">Approved</TableHead>
-              <TableHead>German</TableHead>
-              <TableHead>English</TableHead>
+              <TableHead className="w-[50px]">
+                <Checkbox 
+                  checked={isAllSelected} 
+                  onCheckedChange={toggleSelectAll} 
+                  aria-label="Select all words" 
+                />
+              </TableHead>
+              <TableHead className="w-[80px]">Approved</TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort("german")}>
+                <div className="flex items-center gap-1">
+                  German {getSortIcon("german")}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort("english")}>
+                <div className="flex items-center gap-1">
+                  English {getSortIcon("english")}
+                </div>
+              </TableHead>
               <TableHead>Difficulty</TableHead>
               <TableHead>Source</TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort("createdAt")}>
+                <div className="flex items-center gap-1">
+                  Created {getSortIcon("createdAt")}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort("updatedAt")}>
+                <div className="flex items-center gap-1">
+                  Updated {getSortIcon("updatedAt")}
+                </div>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
                     <p>Loading vocabulary...</p>
@@ -187,6 +340,13 @@ const VocabularyList = ({
             ) : words.length > 0 ? (
               words.map((word) => (
                 <TableRow key={word.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedWords.includes(word.id)}
+                      onCheckedChange={() => toggleWordSelection(word.id)}
+                      aria-label={`Select ${word.german}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Checkbox
                       checked={word.approved}
@@ -242,6 +402,12 @@ const VocabularyList = ({
                       </div>
                     )}
                   </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatDate(word.createdAt)}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatDate(word.updatedAt)}
+                  </TableCell>
                   <TableCell className="text-right">
                     {editingId === word.id ? (
                       <div className="flex justify-end space-x-2">
@@ -265,7 +431,7 @@ const VocabularyList = ({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
                   No vocabulary words found
                 </TableCell>
               </TableRow>
@@ -302,6 +468,58 @@ const VocabularyList = ({
           </div>
         </div>
       )}
+
+      {/* Dialog for updating source */}
+      <Dialog open={isSourceDialogOpen} onOpenChange={setIsSourceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Source</DialogTitle>
+            <DialogDescription>
+              Update the source for {selectedWords.length} selected {selectedWords.length === 1 ? 'word' : 'words'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="new-source" className="text-sm font-medium">
+                New source name
+              </label>
+              <Input
+                id="new-source"
+                value={newSource}
+                onChange={(e) => setNewSource(e.target.value)}
+                placeholder="Enter source name"
+              />
+            </div>
+            {sources && sources.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Or select existing source:</p>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                  {sources.map((source) => (
+                    <Button
+                      key={source}
+                      variant="outline"
+                      size="sm"
+                      className="justify-start"
+                      onClick={() => setNewSource(source)}
+                    >
+                      {newSource === source && <Check className="mr-2 h-4 w-4" />}
+                      {source}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSourceDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateSource}>
+              Update Source
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
