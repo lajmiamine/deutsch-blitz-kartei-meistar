@@ -85,6 +85,12 @@ export const getPaginatedVocabulary = (
       case 'english':
         compareVal = a.english.localeCompare(b.english);
         break;
+      case 'source':
+        // Handle undefined sources properly for sorting
+        const sourceA = a.source || '';
+        const sourceB = b.source || '';
+        compareVal = sourceA.localeCompare(sourceB);
+        break;
       case 'createdAt':
         compareVal = (a.createdAt || 0) - (b.createdAt || 0);
         break;

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { FileText, Search, ChevronLeft, ChevronRight, ArrowUpDown, Check, SortAs
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface VocabularyListProps {
   words?: VocabularyWord[];
@@ -52,8 +52,41 @@ const VocabularyList = ({
   // Load words with pagination if propWords is not provided
   useEffect(() => {
     if (propWords) {
-      setWords(propWords);
-      setTotalWords(propWords.length);
+      // When using provided words directly, we need to sort them manually here
+      let sortedWords = [...propWords];
+      
+      // Apply sorting based on sortBy and sortDirection
+      sortedWords.sort((a, b) => {
+        let compareVal = 0;
+        
+        switch (sortBy) {
+          case 'german':
+            compareVal = a.german.localeCompare(b.german);
+            break;
+          case 'english':
+            compareVal = a.english.localeCompare(b.english);
+            break;
+          case 'source':
+            // Handle undefined sources properly for sorting
+            const sourceA = a.source || '';
+            const sourceB = b.source || '';
+            compareVal = sourceA.localeCompare(sourceB);
+            break;
+          case 'createdAt':
+            compareVal = (a.createdAt || 0) - (b.createdAt || 0);
+            break;
+          case 'updatedAt':
+            compareVal = (a.updatedAt || 0) - (b.updatedAt || 0);
+            break;
+          default:
+            compareVal = a.german.localeCompare(b.german);
+        }
+        
+        return sortDirection === 'asc' ? compareVal : -compareVal;
+      });
+      
+      setWords(sortedWords);
+      setTotalWords(sortedWords.length);
       return;
     }
 
@@ -217,6 +250,12 @@ const VocabularyList = ({
       )
     );
     
+    // If onSourceChange is provided and we're currently filtering by source,
+    // call it to refresh the parent component's state
+    if (selectedSource && onSourceChange) {
+      onSourceChange(selectedSource);
+    }
+    
     setIsSourceDialogOpen(false);
     setSelectedWords([]);
     
@@ -292,159 +331,184 @@ const VocabularyList = ({
         </div>
       )}
 
-      <div className="border rounded-md">
+      <div className="border rounded-md overflow-hidden">
         <ScrollArea className="h-auto max-h-[70vh]">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10">
-              <TableRow>
-                <TableHead className="w-[50px]">
-                  <Checkbox 
-                    checked={isAllSelected} 
-                    onCheckedChange={toggleSelectAll} 
-                    aria-label="Select all words" 
-                  />
-                </TableHead>
-                <TableHead className="w-[80px]">Approved</TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("german")}>
-                  <div className="flex items-center gap-1">
-                    German {getSortIcon("german")}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("english")}>
-                  <div className="flex items-center gap-1">
-                    English {getSortIcon("english")}
-                  </div>
-                </TableHead>
-                <TableHead>Difficulty</TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("source")}>
-                  <div className="flex items-center gap-1">
-                    Source {getSortIcon("source")}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("createdAt")}>
-                  <div className="flex items-center gap-1">
-                    Created {getSortIcon("createdAt")}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("updatedAt")}>
-                  <div className="flex items-center gap-1">
-                    Updated {getSortIcon("updatedAt")}
-                  </div>
-                </TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                      <p>Loading vocabulary...</p>
+                  <TableHead className="w-[50px]">
+                    <Checkbox 
+                      checked={isAllSelected} 
+                      onCheckedChange={toggleSelectAll} 
+                      aria-label="Select all words" 
+                    />
+                  </TableHead>
+                  <TableHead className="w-[80px]">Approved</TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("german")}>
+                    <div className="flex items-center gap-1">
+                      German {getSortIcon("german")}
                     </div>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("english")}>
+                    <div className="flex items-center gap-1">
+                      English {getSortIcon("english")}
+                    </div>
+                  </TableHead>
+                  <TableHead>Difficulty</TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("source")}>
+                    <div className="flex items-center gap-1">
+                      Source {getSortIcon("source")}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("createdAt")}>
+                    <div className="flex items-center gap-1">
+                      Created {getSortIcon("createdAt")}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("updatedAt")}>
+                    <div className="flex items-center gap-1">
+                      Updated {getSortIcon("updatedAt")}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : words.length > 0 ? (
-                words.map((word) => (
-                  <TableRow key={word.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedWords.includes(word.id)}
-                        onCheckedChange={() => toggleWordSelection(word.id)}
-                        aria-label={`Select ${word.german}`}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Checkbox
-                        checked={word.approved}
-                        onCheckedChange={(checked) => 
-                          handleApproveWordWithStateUpdate(word.id, checked === true)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell className="max-w-[180px] overflow-hidden text-ellipsis">
-                      {editingId === word.id ? (
-                        <Input 
-                          value={editGerman} 
-                          onChange={(e) => setEditGerman(e.target.value)}
-                        />
-                      ) : (
-                        <span className="block truncate" title={word.german}>{word.german}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[180px] overflow-hidden text-ellipsis">
-                      {editingId === word.id ? (
-                        <Input 
-                          value={editEnglish} 
-                          onChange={(e) => setEditEnglish(e.target.value)}
-                        />
-                      ) : (
-                        <span className="block truncate" title={word.english}>{word.english}</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {onUpdateDifficulty && (
-                        <Select
-                          value={word.difficulty?.toString() || "0"}
-                          onValueChange={(value) => handleDifficultyChange(word.id, value)}
-                          disabled={editingId === word.id}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Unknown</SelectItem>
-                            <SelectItem value="1">Easy</SelectItem>
-                            <SelectItem value="2">Medium</SelectItem>
-                            <SelectItem value="3">Hard</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[150px] overflow-hidden text-ellipsis">
-                      {word.source && (
-                        <div className="flex items-center gap-1">
-                          <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          <span className="text-sm truncate" title={word.source}>{word.source}</span>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(word.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(word.updatedAt)}
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      {editingId === word.id ? (
-                        <div className="flex justify-end space-x-2">
-                          <Button size="sm" onClick={saveEdit}>Save</Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-end space-x-2">
-                          <Button size="sm" variant="outline" onClick={() => startEditing(word)}>
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => onDeleteWord(word.id)}>
-                            Delete
-                          </Button>
-                        </div>
-                      )}
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                        <p>Loading vocabulary...</p>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
-                    No vocabulary words found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                ) : words.length > 0 ? (
+                  words.map((word) => (
+                    <TableRow key={word.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedWords.includes(word.id)}
+                          onCheckedChange={() => toggleWordSelection(word.id)}
+                          aria-label={`Select ${word.german}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Checkbox
+                          checked={word.approved}
+                          onCheckedChange={(checked) => 
+                            handleApproveWordWithStateUpdate(word.id, checked === true)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className="max-w-[180px]">
+                        {editingId === word.id ? (
+                          <Input 
+                            value={editGerman} 
+                            onChange={(e) => setEditGerman(e.target.value)}
+                          />
+                        ) : (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="block truncate" title={word.german}>{word.german}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>{word.german}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[180px]">
+                        {editingId === word.id ? (
+                          <Input 
+                            value={editEnglish} 
+                            onChange={(e) => setEditEnglish(e.target.value)}
+                          />
+                        ) : (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="block truncate" title={word.english}>{word.english}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>{word.english}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {onUpdateDifficulty && (
+                          <Select
+                            value={word.difficulty?.toString() || "0"}
+                            onValueChange={(value) => handleDifficultyChange(word.id, value)}
+                            disabled={editingId === word.id}
+                          >
+                            <SelectTrigger className="w-[130px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">Unknown</SelectItem>
+                              <SelectItem value="1">Easy</SelectItem>
+                              <SelectItem value="2">Medium</SelectItem>
+                              <SelectItem value="3">Hard</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[150px]">
+                        {word.source ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1">
+                                  <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-sm truncate" title={word.source}>{word.source}</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>{word.source}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(word.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(word.updatedAt)}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        {editingId === word.id ? (
+                          <div className="flex justify-end space-x-2">
+                            <Button size="sm" onClick={saveEdit}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex justify-end space-x-2">
+                            <Button size="sm" variant="outline" onClick={() => startEditing(word)}>
+                              Edit
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => onDeleteWord(word.id)}>
+                              Delete
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
+                      No vocabulary words found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </ScrollArea>
       </div>
 
