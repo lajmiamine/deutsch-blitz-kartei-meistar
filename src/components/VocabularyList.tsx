@@ -66,6 +66,9 @@ const VocabularyList = ({
           case 'english':
             compareVal = a.english.localeCompare(b.english);
             break;
+          case 'difficulty':
+            compareVal = (a.difficulty || 0) - (b.difficulty || 0);
+            break;
           case 'source':
             // Handle undefined sources properly for sorting
             const sourceA = a.source || '';
@@ -365,7 +368,14 @@ const VocabularyList = ({
                       English {getSortIcon("english")}
                     </div>
                   </TableHead>
-                  <TableHead>Difficulty</TableHead>
+                  <TableHead 
+                    className="cursor-pointer"
+                    onClick={(e) => { e.preventDefault(); handleSort("difficulty"); }}
+                  >
+                    <div className="flex items-center gap-1">
+                      Difficulty {getSortIcon("difficulty")}
+                    </div>
+                  </TableHead>
                   <TableHead 
                     className="cursor-pointer" 
                     onClick={(e) => { e.preventDefault(); handleSort("source"); }}
