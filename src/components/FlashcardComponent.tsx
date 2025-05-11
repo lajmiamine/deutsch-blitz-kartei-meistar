@@ -1,4 +1,3 @@
-
 import { useState, useEffect, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -327,22 +326,13 @@ const FlashcardComponent = ({
               {wordProgressDisplay}
             </div>
             
-            {/* Button changes depending on if answer was incorrect */}
-            {feedback === "incorrect" ? (
-              <Button 
-                onClick={onSkip}
-                className="dark:bg-primary dark:text-primary-foreground"
-              >
-                Got it, Next Word
-              </Button>
-            ) : (
-              <Button 
-                onClick={onSkip}
-                className="dark:bg-primary dark:text-primary-foreground"
-              >
-                Next Word
-              </Button>
-            )}
+            {/* Change button text for incorrect answers, making it clear the user should acknowledge the correction */}
+            <Button 
+              onClick={onSkip}
+              className="dark:bg-primary dark:text-primary-foreground"
+            >
+              {feedback === "incorrect" ? "I understand, next word" : "Next word"}
+            </Button>
           </div>
         </Card>
       </div>
