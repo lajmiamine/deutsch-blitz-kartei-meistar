@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -469,7 +468,6 @@ const VocabularyList = ({
         </div>
       )}
 
-      {/* Dialog for updating source */}
       <Dialog open={isSourceDialogOpen} onOpenChange={setIsSourceDialogOpen}>
         <DialogContent>
           <DialogHeader>
