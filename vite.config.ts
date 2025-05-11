@@ -7,7 +7,7 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Use base path for GitHub Pages
-  const base = '/deutsch-blitz-kartei-meistar/';
+  const base = '/deutsch-lernen/';
   
   return {
     base,
