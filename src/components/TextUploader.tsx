@@ -351,12 +351,16 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   const jsonExample = `{
   "words": [
     {
-      "german": "Haus",
-      "english": "house"
+      "german": "der Tisch",
+      "english": "the table"
     },
     {
-      "german": "Auto",
-      "english": "car"
+      "german": "das Buch",
+      "english": "the book"
+    },
+    {
+      "german": "gehen",
+      "english": "to go"
     }
   ]
 }`;
@@ -365,14 +369,25 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
   const xmlExample = `<?xml version="1.0" encoding="UTF-8"?>
 <words>
   <word>
-    <jp>Haus</jp>
-    <eng>house</eng>
+    <german>der Apfel</german>
+    <english>the apple</english>
   </word>
   <word>
-    <jp>Auto</jp>
-    <eng>car</eng>
+    <german>trinken</german>
+    <english>to drink</english>
+  </word>
+  <word>
+    <german>schnell</german>
+    <english>fast</english>
   </word>
 </words>`;
+
+  // Plain text format example
+  const plainTextExample = `der Hund - the dog
+die Katze - the cat
+das Haus - the house
+spielen - to play
+schön - beautiful`;
 
   return (
     <Card className="w-full">
@@ -402,6 +417,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
                     <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">
                       {jsonExample}
                     </pre>
+                    <p className="text-xs mt-1">Upload a JSON file with this structure to import vocabulary.</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -420,11 +436,32 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
                     <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">
                       {xmlExample}
                     </pre>
+                    <p className="text-xs mt-1">Upload an XML file with this structure to import vocabulary.</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-flex">
+                    <FileText className="h-4 w-4 text-gray-500 cursor-help" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="w-80 p-2">
+                  <div>
+                    <p className="font-semibold mb-1">Text Format Example:</p>
+                    <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">
+                      {plainTextExample}
+                    </pre>
+                    <p className="text-xs mt-1">Upload a plain text file with each line in the format "German - English".</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
+          
           <div className="flex items-center gap-2">
             <Input
               id="fileUpload"
@@ -452,6 +489,9 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
               )}
               {file.name.toLowerCase().endsWith('.json') && (
                 <span className="ml-2 text-blue-500">(JSON format)</span>
+              )}
+              {file.name.toLowerCase().endsWith('.txt') && (
+                <span className="ml-2 text-blue-500">(Text format)</span>
               )}
             </p>
           )}
