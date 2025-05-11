@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { addMultipleVocabularyWords } from "@/utils/vocabularyService";
-import { XCircle, Upload, Info, Edit, Check, Trash2, FileJson, FileXml } from "lucide-react";
+import { XCircle, Upload, Info, Edit, Check, Trash2, FileJson, FileText } from "lucide-react";
 import { extractVocabularyFromText } from "@/utils/textParser";
 import { 
   Select, 
@@ -411,7 +411,7 @@ const TextUploader: React.FC<TextUploaderProps> = ({ onFileImported, onWordsExtr
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="inline-flex">
-                    <FileXml className="h-4 w-4 text-green-500 cursor-help" />
+                    <FileText className="h-4 w-4 text-green-500 cursor-help" />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className="w-80 p-2">
