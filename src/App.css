@@ -40,3 +40,16 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Table styling to ensure it takes full width */
+table {
+  table-layout: auto;
+  min-width: 100%;
+}
+
+/* Ensure table container takes available width */
+.border.rounded-md.w-full.overflow-auto {
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+}
