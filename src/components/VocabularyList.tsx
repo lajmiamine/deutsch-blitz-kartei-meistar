@@ -183,8 +183,11 @@ const VocabularyList = ({
     onUpdateDifficulty(id, difficultyValue);
   };
 
-  // Handle sort toggle
+  // Modified handleSort function to prevent page reloads
   const handleSort = (column: string) => {
+    // Prevent default link behavior
+    event?.preventDefault?.();
+    
     if (sortBy === column) {
       // Toggle direction if clicking the same column
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -331,182 +334,199 @@ const VocabularyList = ({
         </div>
       )}
 
-      <div className="border rounded-md">
+      <div className="border rounded-md" style={{ width: '100%' }}>
         <ScrollArea className="h-auto max-h-[70vh]">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10">
-              <TableRow>
-                <TableHead className="w-[40px]">
-                  <Checkbox 
-                    checked={isAllSelected} 
-                    onCheckedChange={toggleSelectAll} 
-                    aria-label="Select all words" 
-                  />
-                </TableHead>
-                <TableHead className="w-[60px]">Approved</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("german")}>
-                  <div className="flex items-center gap-1">
-                    German {getSortIcon("german")}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("english")}>
-                  <div className="flex items-center gap-1">
-                    English {getSortIcon("english")}
-                  </div>
-                </TableHead>
-                <TableHead>Difficulty</TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("source")}>
-                  <div className="flex items-center gap-1">
-                    Source {getSortIcon("source")}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("createdAt")}>
-                  <div className="flex items-center gap-1">
-                    Created {getSortIcon("createdAt")}
-                  </div>
-                </TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort("updatedAt")}>
-                  <div className="flex items-center gap-1">
-                    Updated {getSortIcon("updatedAt")}
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+          <div className="w-full overflow-x-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                      <p>Loading vocabulary...</p>
+                  <TableHead className="w-[40px]">
+                    <Checkbox 
+                      checked={isAllSelected} 
+                      onCheckedChange={toggleSelectAll} 
+                      aria-label="Select all words" 
+                    />
+                  </TableHead>
+                  <TableHead className="w-[60px]">Approved</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={(e) => { e.preventDefault(); handleSort("german"); }}
+                  >
+                    <div className="flex items-center gap-1">
+                      German {getSortIcon("german")}
                     </div>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={(e) => { e.preventDefault(); handleSort("english"); }}
+                  >
+                    <div className="flex items-center gap-1">
+                      English {getSortIcon("english")}
+                    </div>
+                  </TableHead>
+                  <TableHead>Difficulty</TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={(e) => { e.preventDefault(); handleSort("source"); }}
+                  >
+                    <div className="flex items-center gap-1">
+                      Source {getSortIcon("source")}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={(e) => { e.preventDefault(); handleSort("createdAt"); }}
+                  >
+                    <div className="flex items-center gap-1">
+                      Created {getSortIcon("createdAt")}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={(e) => { e.preventDefault(); handleSort("updatedAt"); }}
+                  >
+                    <div className="flex items-center gap-1">
+                      Updated {getSortIcon("updatedAt")}
+                    </div>
+                  </TableHead>
                 </TableRow>
-              ) : words.length > 0 ? (
-                words.map((word) => (
-                  <TableRow key={word.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedWords.includes(word.id)}
-                        onCheckedChange={() => toggleWordSelection(word.id)}
-                        aria-label={`Select ${word.german}`}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Checkbox
-                        checked={word.approved}
-                        onCheckedChange={(checked) => 
-                          handleApproveWordWithStateUpdate(word.id, checked === true)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {editingId === word.id ? (
-                        <div className="flex space-x-2">
-                          <Button size="sm" onClick={saveEdit}>Save</Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex space-x-2">
-                          <Button size="icon" variant="ghost" onClick={() => startEditing(word)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => onDeleteWord(word.id)}>
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[180px]">
-                      {editingId === word.id ? (
-                        <Input 
-                          value={editGerman} 
-                          onChange={(e) => setEditGerman(e.target.value)}
-                        />
-                      ) : (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="block truncate" title={word.german}>{word.german}</span>
-                            </TooltipTrigger>
-                            <TooltipContent>{word.german}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[180px]">
-                      {editingId === word.id ? (
-                        <Input 
-                          value={editEnglish} 
-                          onChange={(e) => setEditEnglish(e.target.value)}
-                        />
-                      ) : (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="block truncate" title={word.english}>{word.english}</span>
-                            </TooltipTrigger>
-                            <TooltipContent>{word.english}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {onUpdateDifficulty && (
-                        <Select
-                          value={word.difficulty?.toString() || "0"}
-                          onValueChange={(value) => handleDifficultyChange(word.id, value)}
-                          disabled={editingId === word.id}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Unknown</SelectItem>
-                            <SelectItem value="1">Easy</SelectItem>
-                            <SelectItem value="2">Medium</SelectItem>
-                            <SelectItem value="3">Hard</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[150px]">
-                      {word.source ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center gap-1">
-                                <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                <span className="text-sm truncate" title={word.source}>{word.source}</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>{word.source}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(word.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(word.updatedAt)}
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                        <p>Loading vocabulary...</p>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
-                    No vocabulary words found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                ) : words.length > 0 ? (
+                  words.map((word) => (
+                    <TableRow key={word.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedWords.includes(word.id)}
+                          onCheckedChange={() => toggleWordSelection(word.id)}
+                          aria-label={`Select ${word.german}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Checkbox
+                          checked={word.approved}
+                          onCheckedChange={(checked) => 
+                            handleApproveWordWithStateUpdate(word.id, checked === true)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {editingId === word.id ? (
+                          <div className="flex space-x-2">
+                            <Button size="sm" onClick={saveEdit}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex space-x-2">
+                            <Button size="icon" variant="ghost" onClick={() => startEditing(word)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => onDeleteWord(word.id)}>
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[180px]">
+                        {editingId === word.id ? (
+                          <Input 
+                            value={editGerman} 
+                            onChange={(e) => setEditGerman(e.target.value)}
+                          />
+                        ) : (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="block truncate" title={word.german}>{word.german}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>{word.german}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[180px]">
+                        {editingId === word.id ? (
+                          <Input 
+                            value={editEnglish} 
+                            onChange={(e) => setEditEnglish(e.target.value)}
+                          />
+                        ) : (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="block truncate" title={word.english}>{word.english}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>{word.english}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {onUpdateDifficulty && (
+                          <Select
+                            value={word.difficulty?.toString() || "0"}
+                            onValueChange={(value) => handleDifficultyChange(word.id, value)}
+                            disabled={editingId === word.id}
+                          >
+                            <SelectTrigger className="w-[130px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">Unknown</SelectItem>
+                              <SelectItem value="1">Easy</SelectItem>
+                              <SelectItem value="2">Medium</SelectItem>
+                              <SelectItem value="3">Hard</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[150px]">
+                        {word.source ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1">
+                                  <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-sm truncate" title={word.source}>{word.source}</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>{word.source}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(word.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(word.updatedAt)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
+                      No vocabulary words found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </ScrollArea>
       </div>
 
