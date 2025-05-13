@@ -78,6 +78,16 @@ const FlashcardGame = () => {
   // Create a ref to track when we need to reload words after source/difficulty changes
   const shouldReloadWords = useRef(false);
 
+  // New state for tracking the previous word
+  const [previousWord, setPreviousWord] = useState<VocabularyWord | null>(null);
+  const [previousWordCorrect, setPreviousWordCorrect] = useState<boolean | null>(null);
+  const [previousUserAnswer, setPreviousUserAnswer] = useState<string>("");
+
+  // Add the missing function to capture user answers
+  const handleCaptureUserAnswer = (answer: string) => {
+    setPreviousUserAnswer(answer);
+  };
+
   // Load vocabulary when component mounts
   useEffect(() => {
     // Check if a source was selected in the admin panel
@@ -541,11 +551,6 @@ const FlashcardGame = () => {
     
     return selectedSource || "All words";
   };
-
-  // New state for tracking the previous word
-  const [previousWord, setPreviousWord] = useState<VocabularyWord | null>(null);
-  const [previousWordCorrect, setPreviousWordCorrect] = useState<boolean | null>(null);
-  const [previousUserAnswer, setPreviousUserAnswer] = useState<string>("");
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
